@@ -28,7 +28,7 @@ export const NewGroupForm: React.FC<NewGroupFormProps> = ({ onClose, onSuccess, 
       if (parentId) {
         payload.parent_id = parentId;
       }
-      await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/groups/create/', payload);
+      await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/groups/create/', payload);
       onSuccess();
       onClose();
     } catch (error: any) {

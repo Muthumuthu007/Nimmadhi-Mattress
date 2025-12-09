@@ -211,7 +211,7 @@ const GroupTree: React.FC = () => {
         name: item.name,
         username: user.username
       };
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/delete/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/delete/', payload);
 
       if (response.data && response.data.message) {
         setMessage(response.data.message);
@@ -868,7 +868,7 @@ const GroupTree: React.FC = () => {
       const payload = {
         group_id: groupId
       };
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/groups/delete/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/groups/delete/', payload);
 
       if (response.data && response.data.message === 'Group deleted successfully') {
         setDeleteGroupMessage({ type: 'success', text: 'Group deleted successfully' });
@@ -909,7 +909,7 @@ const GroupTree: React.FC = () => {
           username: user.username,
           supplier_name: supplierName
         };
-        const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/add-quantity/', payload);
+        const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/add-quantity/', payload);
 
         if (response.data && response.data.message) {
           setMessage(response.data.message);
@@ -922,7 +922,7 @@ const GroupTree: React.FC = () => {
           quantity_to_subtract: quantity,
           username: user.username
         };
-        const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/subtract-quantity/', payload);
+        const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/subtract-quantity/', payload);
 
         if (response.data && response.data.message) {
           setMessage(response.data.message);
@@ -968,7 +968,7 @@ const GroupTree: React.FC = () => {
           defective_to_add: quantity,
           username: user.username
         };
-        const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/add-defective/', payload);
+        const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/add-defective/', payload);
 
         if (response.data && response.data.message) {
           setMessage(response.data.message);
@@ -981,7 +981,7 @@ const GroupTree: React.FC = () => {
           defective_to_subtract: quantity,
           username: user.username
         };
-        const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/subtract-defective/', payload);
+        const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/subtract-defective/', payload);
 
         if (response.data && response.data.message) {
           setMessage(response.data.message);
@@ -1034,7 +1034,7 @@ const GroupTree: React.FC = () => {
       const payload = {
         stock: remarksMaterial.name
       };
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/descriptions/get/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/descriptions/get/', payload);
       const res = response.data;
       if (res && res.description) {
         setViewedRemark(res);
@@ -1060,7 +1060,7 @@ const GroupTree: React.FC = () => {
         description: remarksInput,
         username: user.username,
       };
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/descriptions/create/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/descriptions/create/', payload);
 
       const res = response.data;
       setMessage(res.message || 'Description saved successfully.');

@@ -161,7 +161,7 @@ export const AlterMaterialsModal: React.FC<AlterMaterialsModalProps> = ({
         return;
       }
 
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/production/alter/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/production/alter/', payload);
 
       if (response.data && response.data.message === "Product components altered successfully") {
         setSuccess('Product components altered successfully');

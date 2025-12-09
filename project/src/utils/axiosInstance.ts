@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { authService } from './authService';
 
 // Use the environment variable or fallback
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://d3tat64zqbamt7.cloudfront.net';
 
 export const axiosInstance = axios.create({
     baseURL: API_BASE_URL,

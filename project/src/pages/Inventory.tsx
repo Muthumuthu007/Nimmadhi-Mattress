@@ -34,7 +34,7 @@ const Inventory = () => {
       const payload = {
         username: user.username
       };
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/closing-stock/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/closing-stock/', payload);
       const res = response.data;
 
       if (res && res.message) {
@@ -356,7 +356,7 @@ const DefectiveReport: React.FC = () => {
       const payload = {
         username: user.username
       };
-      const response = await axiosInstance.post('http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com/api/stock/descriptions/list/', payload);
+      const response = await axiosInstance.post('https://d3tat64zqbamt7.cloudfront.net/api/stock/descriptions/list/', payload);
       const res = response.data;
       setData(Array.isArray(res) ? res : []);
       setExpanded(true);

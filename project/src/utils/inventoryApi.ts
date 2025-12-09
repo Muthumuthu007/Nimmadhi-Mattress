@@ -2,7 +2,7 @@ import axios from 'axios';
 import { axiosInstance } from './axiosInstance';
 
 // Use the environment variable or fallback
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://d3tat64zqbamt7.cloudfront.net';
 
 /**
  * Fetch all inventory stocks using POST endpoint
