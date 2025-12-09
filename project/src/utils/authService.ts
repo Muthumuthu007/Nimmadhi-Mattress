@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use the environment variable or fallback to the provided URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://mumbai-stock.eba-umwanvzv.ap-south-1.elasticbeanstalk.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://d3tat64zqbamt7.cloudfront.net';
 
 // Keys for localStorage
 const TOKEN_KEY = 'auth_token';
