@@ -298,7 +298,9 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
       setShowStockModal(false);
       setSelectedMaterial(null);
     } catch (e: any) {
-      setError(e.message || `Failed to ${stockModalMode} stock.`);
+      if (stockModalMode === 'add') {
+        setError(e.message || `Failed to ${stockModalMode} stock.`);
+      }
     } finally {
       setIsStockProcessing(false);
     }
