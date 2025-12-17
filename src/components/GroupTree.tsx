@@ -3,7 +3,7 @@ import { axiosInstance } from '../utils/axiosInstance';
 import { fetchAllStocks } from '../utils/inventoryApi';
 import { NewGroupForm } from './NewGroupForm';
 import { NewMaterialForm } from './NewMaterialForm';
-import { Edit2, Trash2, Check, X, ArrowUpDown, Download, MessageCircle, Search } from 'lucide-react';
+import { Edit2, Trash2, Check, X, ArrowUpDown, Download, MessageCircle, Search, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { HighlightText } from '../utils/searchUtils';
 import { StockAlerts } from './StockAlerts';
 import { checkStockAlerts } from '../utils/stockMonitoring';
@@ -231,6 +231,38 @@ const GroupTree: React.FC = () => {
       setMaterialToDelete(null);
     } finally {
       setIsDeletingMaterial(false);
+    }
+  };
+
+  const getAllGroupIds = (nodes: GroupNode[]): string[] => {
+    let ids: string[] = [];
+    nodes.forEach(node => {
+      const key = node.group_id || node.group_name;
+      if (key) ids.push(key);
+      if (node.subgroups) {
+        ids = ids.concat(getAllGroupIds(node.subgroups));
+      }
+    });
+    return ids;
+  };
+
+  const handleToggleExpandAll = () => {
+    const allIds = getAllGroupIds(tree);
+    // If any are not expanded, we expand all. Only if ALL are expanded do we collapse all.
+    // Or we can check if > 0 expanded? 
+    // Usually a toggle state is better tracked, but derived state logic is:
+    // If all are open -> Close All
+    // Otherwise -> Open All
+    const allExpanded = allIds.length > 0 && allIds.every(id => expandedGroups[id]);
+
+    if (allExpanded) {
+      setExpandedGroups({});
+    } else {
+      const newExpanded = allIds.reduce((acc: any, id) => {
+        acc[id] = true;
+        return acc;
+      }, {});
+      setExpandedGroups(newExpanded);
     }
   };
 
@@ -1085,6 +1117,23 @@ const GroupTree: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Management</h2>
           <div className="flex flex-1 gap-2 items-center justify-end">
+            <button
+              className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all duration-200 flex items-center gap-2"
+              onClick={handleToggleExpandAll}
+              title="Expand/Collapse All Groups"
+            >
+              {getAllGroupIds(tree).length > 0 && getAllGroupIds(tree).every(id => expandedGroups[id]) ? (
+                <>
+                  <ChevronsUp size={18} />
+                  <span className="hidden xl:inline text-sm font-medium">Collapse All</span>
+                </>
+              ) : (
+                <>
+                  <ChevronsDown size={18} />
+                  <span className="hidden xl:inline text-sm font-medium">Expand All</span>
+                </>
+              )}
+            </button>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input

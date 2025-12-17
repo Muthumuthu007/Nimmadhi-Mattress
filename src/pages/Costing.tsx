@@ -159,9 +159,7 @@ const Costing: React.FC = () => {
   const fetchAvailableMaterials = async () => {
     setIsLoadingMaterials(true);
     try {
-      const response = await apiClient.post('/api/stock/inventory/', {
-        username: user.username
-      });
+      const response = await apiClient.post('/api/stock/inventory/', {});
 
       const data = response.data;
 

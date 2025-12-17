@@ -69,9 +69,7 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
             // 1. Fetch Inventory for Validation
             let currentInventory: any[] = [];
             try {
-                const response = await axiosInstance.get('/api/stock/inventory/', {
-                    params: { username: user.username }
-                });
+                const response = await axiosInstance.post('/api/stock/inventory/', {});
 
                 // Robustly find the array in the response
                 const data = response.data;
@@ -145,7 +143,7 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
 
                 // Save previous bed if exists
                 if (currentBed && currentMaterials.length > 0) {
-                    validateAndPushBed(currentBed, currentMaterials, beds, inventoryList);
+                    validateAndPushBed(currentBed, currentMaterials, beds);
                 }
 
                 // Start New Bed using name from previous row similar to before
@@ -174,7 +172,7 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
             // If we are inside a bed block, read materials
             if (currentBed) {
                 if (row.some(c => String(c).toUpperCase().includes('TOTAL'))) {
-                    validateAndPushBed(currentBed, currentMaterials, beds, inventoryList);
+                    validateAndPushBed(currentBed, currentMaterials, beds);
                     currentBed = null;
                     currentMaterials = [];
                     continue;
@@ -229,7 +227,7 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
 
         // Push last bed if exists (EOF case)
         if (currentBed && currentMaterials.length > 0) {
-            validateAndPushBed(currentBed, currentMaterials, beds, inventoryList);
+            validateAndPushBed(currentBed, currentMaterials, beds);
         }
 
         return beds;
@@ -238,8 +236,7 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
     const validateAndPushBed = (
         bed: Partial<ParsedBed>,
         materials: ParsedMaterial[],
-        list: ParsedBed[],
-        inventoryList: any[]
+        list: ParsedBed[]
     ) => {
         const errors: string[] = [];
 
@@ -281,16 +278,30 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
         const itemName = stockItem.name || stockItem.item_name || stockItem.item_id;
         const itemId = stockItem.id || stockItem.item_id;
 
-        setParsedBeds(prev => prev.map(bed => {
-            if (bed.id !== mappingBedId) return bed;
+        // Identify the raw name we are mapping
+        // We find it from the current bed using the index
+        const currentBed = parsedBeds.find(b => b.id === mappingBedId);
+        if (!currentBed) return;
+        const targetRawName = currentBed.materials[mappingMatIndex].name.trim().toLowerCase();
 
-            const updatedMaterials = [...bed.materials];
-            updatedMaterials[mappingMatIndex] = {
-                ...updatedMaterials[mappingMatIndex],
-                isValid: true,
-                matchedStockId: itemId,
-                matchedStockName: itemName
-            };
+        setParsedBeds(prev => prev.map(bed => {
+            // We want to check EVERY bed, not just the current one
+            // Check if this bed has any material matching the targetRawName
+            const hasMatch = bed.materials.some(m => m.name.trim().toLowerCase() === targetRawName);
+
+            if (!hasMatch) return bed;
+
+            const updatedMaterials = bed.materials.map(m => {
+                if (m.name.trim().toLowerCase() === targetRawName) {
+                    return {
+                        ...m,
+                        isValid: true,
+                        matchedStockId: itemId,
+                        matchedStockName: itemName
+                    };
+                }
+                return m;
+            });
 
             // Re-validate bed
             const invalidCount = updatedMaterials.filter(m => !m.isValid).length;

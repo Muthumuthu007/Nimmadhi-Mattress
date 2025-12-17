@@ -55,9 +55,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
   const fetchAvailableMaterials = async () => {
     setIsLoadingMaterials(true);
     try {
-      const response = await axiosInstance.post('/api/stock/inventory/', {
-        username: user.username
-      });
+      const response = await axiosInstance.post('/api/stock/inventory/', {});
 
       const data = response.data;
 
