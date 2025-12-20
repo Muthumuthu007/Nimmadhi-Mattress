@@ -5,7 +5,6 @@ import { ProductionResponse, InsufficientMaterial } from '../types/index';
 import { productionApi } from '../utils/productionApi';
 
 import { AlertTriangle, RotateCcw, Search, ChevronDown, ChevronUp } from 'lucide-react';
-import ConfirmationDialog from './ConfirmationDialog';
 import { useAuth } from '../contexts/AuthContext';
 import UndoProductionModal from './UndoProductionModal';
 
@@ -88,13 +87,20 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
       });
 
       const data = response.data;
+      console.log('Production push response data:', data);
+      console.log('data.total_cost:', data.total_cost);
+      console.log('data["total_cost"]:', data['total_cost']);
+      console.log('data.total_production_cost:', data.total_production_cost);
 
       if (data && (data.message === "Production successful" ||
         data.message?.includes("successfully") ||
         (data as any).status === "success")) {
 
         setLastProduction(data);
-        setSuccessMessage(`Successfully produced ${data.quantity_produced} units at a total cost of ₹${data.total_production_cost.toFixed(2)}`);
+        // Robustly check for total_cost using multiple access methods and fallbacks
+        const finalCost = data.total_cost ?? data['total_cost'] ?? data.total_production_cost ?? 0;
+        console.log('finalCost selected:', finalCost);
+        setSuccessMessage(`Successfully produced ${data.quantity_produced} units at a total cost of ₹${Number(finalCost).toFixed(2)}`);
         onProductionComplete();
       } else if (data && data.can_produce === false && data.insufficient_materials) {
         setError(data.reason || 'Insufficient stock to complete production.');
@@ -115,6 +121,14 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
     }
   };
 
+  // Helper function to normalize strings for comparison
+  const normalizeString = (str: string) => {
+    return str
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' '); // Collapse multiple spaces into one
+  };
+
   // Filter products based on search
   const filteredProducts = products.map(product => {
     return {
@@ -122,10 +136,13 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
       maxProduce: product.maxProduce,
       missingMaterials: []
     };
-  }).filter(product =>
-    (product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.id && product.id.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  }).filter(product => {
+    const normalizedQuery = normalizeString(searchQuery);
+    const normalizedName = normalizeString(product.name || '');
+    const normalizedId = normalizeString(product.id || '');
+
+    return normalizedName.includes(normalizedQuery) || normalizedId.includes(normalizedQuery);
+  });
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
@@ -189,15 +206,17 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                 Number(lastProduct.wastageAmount || 0) +
                 Number((lastProduct as any).otherCost || 0)
               ).toFixed(2) : '-'}</p>
-              <p><span className="font-medium">Total Cost:</span> ₹{lastProduct ? (
-                (
+              <p><span className="font-medium">Total Cost:</span> ₹{(
+                lastProduction.total_cost ??
+                lastProduction.total_production_cost ??
+                (lastProduct ? (
                   Number(lastProduct.productionCostTotal) +
                   Number(lastProduct.laborCost || 0) +
                   Number(lastProduct.transportCost || 0) +
                   Number(lastProduct.wastageAmount || 0) +
                   Number((lastProduct as any).otherCost || 0)
-                ) * Number(lastProduction.quantity_produced)
-              ).toFixed(2) : '-'}</p>
+                ) * Number(lastProduction.quantity_produced) : 0)
+              ).toFixed(2)}</p>
               <p><span className="font-medium">Push ID:</span> {lastProduction.push_id}</p>
             </div>
           </div>

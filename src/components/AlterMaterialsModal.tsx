@@ -8,7 +8,7 @@ interface AlterMaterialsModalProps {
   product: Product;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (data?: any) => void;
 }
 
 interface MaterialEntry {
@@ -166,7 +166,7 @@ export const AlterMaterialsModal: React.FC<AlterMaterialsModalProps> = ({
       if (response.data && response.data.message === "Product components altered successfully") {
         setSuccess('Product components altered successfully');
         setTimeout(() => {
-          onSuccess();
+          onSuccess(response.data);
           onClose();
         }, 1500);
       } else {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Search, Loader2, X, ChevronDown, ChevronUp, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Search, Loader2, X, ChevronDown, ChevronUp, Filter, RefreshCw, Copy, Maximize, Minimize } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { createCastingProduct, CreateCastingPayload, viewCastings, CastingProductResponse, moveToProduction, MoveToProductionPayload, deleteCastingProduct, DeleteCastingPayload } from '../utils/castingApi';
 import { apiClient } from '../utils/api';
@@ -28,11 +28,12 @@ interface CostingCardProps {
   product: CastingProductResponse;
   onMove: (productId: string) => void;
   onDelete: (productId: string) => void;
+  onDuplicate: (product: CastingProductResponse) => void;
   isMoving?: boolean;
   isDeleting?: boolean;
 }
 
-const CostingCard: React.FC<CostingCardProps> = ({ product, onMove, onDelete, isMoving = false, isDeleting = false }) => {
+const CostingCard: React.FC<CostingCardProps> = ({ product, onMove, onDelete, onDuplicate, isMoving = false, isDeleting = false }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col transition-colors">
       {/* Header */}
@@ -106,6 +107,14 @@ const CostingCard: React.FC<CostingCardProps> = ({ product, onMove, onDelete, is
           )}
         </button>
         <button
+          onClick={() => onDuplicate(product)}
+          className="flex-1 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded transition-colors shadow-sm flex items-center justify-center"
+          title="Duplicate Costing"
+        >
+          <Copy className="h-4 w-4 mr-1.5" />
+          Duplicate
+        </button>
+        <button
           onClick={() => onDelete(product.product_id)}
           disabled={isDeleting}
           className={`flex-1 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 border border-gray-300 dark:border-gray-600 text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center ${isDeleting ? 'opacity-75 cursor-not-allowed' : ''
@@ -149,6 +158,10 @@ const Costing: React.FC = () => {
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
+  const [originalCostingData, setOriginalCostingData] = useState<CastingProductResponse | null>(null);
+  const [priceChanges, setPriceChanges] = useState<{ [itemId: string]: { oldPrice: number; newPrice: number } }>({});
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Calculate total cost
   const totalCost = selectedIngredients.reduce((sum, ing) => sum + ing.subtotal, 0);
@@ -462,6 +475,69 @@ const Costing: React.FC = () => {
     }
   };
 
+  // Handle duplicate costing
+  const handleDuplicateCosting = async (product: CastingProductResponse) => {
+    setError(null);
+    setSuccess(null);
+    setIsDuplicateMode(true);
+    setOriginalCostingData(product);
+
+    try {
+      // Fetch current inventory to validate materials and check for price changes
+      await fetchAvailableMaterials();
+
+      // Wait a bit for materials to load
+      setTimeout(() => {
+        // Set the costing name with " (Copy)" suffix
+        setCastingName(`${product.product_name} (Copy)`);
+
+        // Set additional costs
+        setWastagePercent(product.wastage_percent.toString());
+        setTransportCost(product.transport_cost.toString());
+        setLabourCost(product.labour_cost.toString());
+        setOtherCost(product.other_cost.toString());
+
+        // Convert stock_needed to selected ingredients
+        const ingredients: SelectedIngredient[] = [];
+        const detectedPriceChanges: { [itemId: string]: { oldPrice: number; newPrice: number } } = {};
+
+        Object.entries(product.stock_needed).forEach(([itemId, quantity]) => {
+          // Find the material in current inventory
+          const currentMaterial = availableMaterials.find(m => m.id === itemId);
+
+          if (currentMaterial) {
+            ingredients.push({
+              itemId: itemId,
+              name: currentMaterial.name,
+              stockAvailable: currentMaterial.available,
+              unitCost: currentMaterial.cost,
+              qtyUsed: quantity,
+              subtotal: quantity * currentMaterial.cost
+            });
+          } else {
+            // Material no longer exists in inventory - still add it but with warning
+            console.warn(`Material ${itemId} from original costing not found in current inventory`);
+          }
+        });
+
+        setSelectedIngredients(ingredients);
+        setPriceChanges(detectedPriceChanges);
+
+        // Show info message about duplication
+        setSuccess(`Duplicating "${product.product_name}". Review and modify as needed before saving.`);
+
+        // Open workbench
+        setShowWorkbench(true);
+      }, 300); // Small delay to ensure materials are loaded
+
+    } catch (err: any) {
+      console.error('Error duplicating costing:', err);
+      setError('Failed to load materials for duplication. Please try again.');
+      setIsDuplicateMode(false);
+      setOriginalCostingData(null);
+    }
+  };
+
   // Close workbench
   const handleCloseWorkbench = () => {
     setShowWorkbench(false);
@@ -475,6 +551,10 @@ const Costing: React.FC = () => {
     setSearchFilter('all');
     setError(null);
     setSuccess(null);
+    setIsDuplicateMode(false);
+    setOriginalCostingData(null);
+    setPriceChanges({});
+    setIsFullscreen(false);
   };
 
   return (
@@ -580,6 +660,7 @@ const Costing: React.FC = () => {
               product={product}
               onMove={handleMoveToProduction}
               onDelete={handleDeleteCasting}
+              onDuplicate={handleDuplicateCosting}
               isMoving={movingProductId === product.product_id}
               isDeleting={deletingProductId === product.product_id}
             />
@@ -591,19 +672,38 @@ const Costing: React.FC = () => {
       {showWorkbench && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={handleCloseWorkbench} />
-          <div className="absolute right-0 top-0 h-full w-full max-w-3xl bg-white shadow-xl flex flex-col">
+          <div className={`absolute right-0 top-0 h-full bg-white shadow-xl flex flex-col transition-all duration-300 ${isFullscreen ? 'w-full' : 'w-full max-w-3xl'}`}>
             {/* Header */}
             <div className="p-6 border-b border-gray-200 bg-indigo-50">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Create New Sample</h2>
-                <button
-                  onClick={handleCloseWorkbench}
-                  className="text-gray-400 hover:text-gray-600"
-                  title="Close"
-                  aria-label="Close workbench"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {isDuplicateMode ? 'Duplicate Costing' : 'Create New Sample'}
+                  </h2>
+                  {isDuplicateMode && originalCostingData && (
+                    <p className="text-sm text-indigo-600 mt-1">
+                      Creating a copy of "{originalCostingData.product_name}"
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                    aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                  >
+                    {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                  </button>
+                  <button
+                    onClick={handleCloseWorkbench}
+                    className="text-gray-400 hover:text-gray-600"
+                    title="Close"
+                    aria-label="Close workbench"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <input

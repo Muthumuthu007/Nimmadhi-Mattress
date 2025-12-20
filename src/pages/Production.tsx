@@ -53,7 +53,7 @@ const ScrollToTop = () => {
 
 const Production = () => {
   const location = useLocation();
-  const { products, fetchProducts } = useProducts();
+  const { products, fetchProducts, addProduct } = useProducts();
   console.log('Products in Production page:', products);
   const { refreshInventory } = useInventory();
 
@@ -136,7 +136,24 @@ const Production = () => {
     setShowAlterMaterialsModal(true);
   };
 
-  const handleAlterMaterialsSuccess = () => {
+  const handleAlterMaterialsSuccess = (updatedData?: any) => {
+    if (updatedData && selectedProductForAlter) {
+      const updatedProduct = {
+        ...selectedProductForAlter,
+        stockNeeded: updatedData.stock_needed || selectedProductForAlter.stockNeeded,
+        materials: updatedData.stock_needed
+          ? Object.entries(updatedData.stock_needed).map(([k, v]) => ({ materialName: k, quantity: Number(v) }))
+          : selectedProductForAlter.materials,
+        productionCostTotal: updatedData.production_cost_total ?? selectedProductForAlter.productionCostTotal,
+        wastageAmount: updatedData.wastage_amount ?? selectedProductForAlter.wastageAmount,
+        totalCost: updatedData.total_cost ?? selectedProductForAlter.totalCost,
+        maxProduce: updatedData.max_produce ?? selectedProductForAlter.maxProduce,
+        inventory: updatedData.inventory ?? selectedProductForAlter.inventory,
+      };
+
+      addProduct(updatedProduct);
+    }
+
     // Refresh the products list to get updated data
     fetchProducts();
     setSuccessMessage('Product materials updated successfully!');
@@ -702,13 +719,13 @@ const Production = () => {
                           <div className="flex-1 sm:flex-initial text-left sm:text-right">
                             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Cost</div>
                             <div className="text-lg sm:text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                              ₹{(
+                              ₹{Number(product.totalCost || (
                                 Number(product.productionCostTotal) +
                                 Number(product.laborCost || 0) +
                                 Number(product.transportCost || 0) +
                                 Number(product.wastageAmount || 0) +
                                 Number((product as any).otherCost || 0)
-                              ).toFixed(2)}
+                              )).toFixed(2)}
                             </div>
                           </div>
                           <button
@@ -773,13 +790,13 @@ const Production = () => {
                                 </div>
                                 <div className="flex justify-between text-xs sm:text-sm pt-2 border-t border-purple-300 dark:border-purple-700 gap-2">
                                   <span className="text-purple-700 dark:text-purple-400 font-bold break-words">Total Cost:</span>
-                                  <span className="font-bold text-purple-900 dark:text-purple-200 text-right flex-shrink-0">₹{(
+                                  <span className="font-bold text-purple-900 dark:text-purple-200 text-right flex-shrink-0">₹{Number(product.totalCost || (
                                     Number(product.productionCostTotal) +
                                     Number(product.laborCost || 0) +
                                     Number(product.transportCost || 0) +
                                     Number(product.wastageAmount || 0) +
                                     Number((product as any).otherCost || 0)
-                                  ).toFixed(2)}</span>
+                                  )).toFixed(2)}</span>
                                 </div>
                               </div>
                             </div>

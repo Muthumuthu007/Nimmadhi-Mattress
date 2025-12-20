@@ -29,7 +29,16 @@ export function useFuzzySearch<T extends object>(
             return;
         }
 
-        const fuseResults = fuse.search(query);
+        // Normalize the query:
+        // 1. Trim leading/trailing spaces
+        // 2. Collapse multiple spaces into one
+        // 3. Escape special regex characters that might break Fuse.js
+        const normalizedQuery = query
+            .trim()
+            .replace(/\s+/g, ' ') // Collapse multiple spaces
+            .replace(/[+\-*?^${}()|[\]\\]/g, '\\$&'); // Escape special chars
+
+        const fuseResults = fuse.search(normalizedQuery);
         const results = fuseResults.map(result => ({
             ...result.item,
             matches: result.matches as ReadonlyArray<SearchMatch>

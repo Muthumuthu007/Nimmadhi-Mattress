@@ -96,6 +96,7 @@ export interface ProductionResponse {
   quantity_produced?: number;
   production_cost_per_unit?: number;
   total_production_cost?: number;
+  total_cost?: number;
   can_produce?: boolean;
   max_produce?: number;
   reason?: string;
