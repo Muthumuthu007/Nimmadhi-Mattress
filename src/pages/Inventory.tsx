@@ -6,6 +6,7 @@ import { NewProductForm } from '../components/NewProductForm';
 import { useInventory } from '../hooks/useInventory';
 import { fetchAllStocks, saveOpeningStock } from '../utils/inventoryApi';
 import { useAuth } from '../contexts/AuthContext';
+import { markOpeningStockSaved, markClosingStockSaved } from '../utils/dailyStockStorage';
 
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
@@ -46,6 +47,8 @@ const Inventory = () => {
           aggregate_closing_amount: res.aggregate_closing_amount
         });
         setShowClosingStockSummary(true);
+        // Mark closing stock as saved in localStorage
+        markClosingStockSaved();
       }
     } catch (error: any) {
       setClosingStockSummary({
@@ -75,6 +78,8 @@ const Inventory = () => {
           aggregate_opening_amount: response.aggregate_opening_amount
         });
         setShowOpeningStockSummary(true);
+        // Mark opening stock as saved in localStorage
+        markOpeningStockSaved();
       }
     } catch (error: any) {
       console.error('Error in handleSaveOpeningStock:', error);

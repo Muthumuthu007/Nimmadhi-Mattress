@@ -18,6 +18,7 @@ import Login from '../pages/Login';
 import Admin from '../pages/Admin';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AdminRoute from '../components/AdminRoute';
+import PermissionGuard from '../components/PermissionGuard';
 import SignUp from '../pages/SignUp';
 import DispatchedDaily from '../pages/DispatchedDaily';
 import DispatchedWeekly from '../pages/DispatchedWeekly';
@@ -65,27 +66,51 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard />,
+        element: (
+          <PermissionGuard permission="dashboard">
+            <Dashboard />
+          </PermissionGuard>
+        ),
       },
       {
         path: 'grn',
-        element: <GRN />,
+        element: (
+          <PermissionGuard permission="grn">
+            <GRN />
+          </PermissionGuard>
+        ),
       },
       {
         path: 'costing',
-        element: <Costing />,
+        element: (
+          <PermissionGuard permission="costing">
+            <Costing />
+          </PermissionGuard>
+        ),
       },
       {
         path: 'inventory',
-        element: <Inventory />,
+        element: (
+          <PermissionGuard permission="inventory">
+            <Inventory />
+          </PermissionGuard>
+        ),
       },
       {
         path: 'production',
-        element: <Production />,
+        element: (
+          <PermissionGuard permission="production">
+            <Production />
+          </PermissionGuard>
+        ),
       },
       {
         path: 'dispatched',
-        element: <Dispatched />,
+        element: (
+          <PermissionGuard permission="dispatch">
+            <Dispatched />
+          </PermissionGuard>
+        ),
         children: [
           {
             path: 'daily',
@@ -103,10 +128,15 @@ export const router = createBrowserRouter([
       },
       {
         path: 'reports',
+        element: (
+          <PermissionGuard permission="reports">
+            <Reports />
+          </PermissionGuard>
+        ),
         children: [
           {
             index: true,
-            element: <Reports />,
+            element: <Navigate to="daily" replace />, // Optional: Redirect to first report sub-tab
           },
           {
             path: 'daily',

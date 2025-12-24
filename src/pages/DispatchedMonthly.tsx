@@ -76,8 +76,8 @@ const DispatchedMonthly = () => {
       const rows = records.map(r => [
         r.product_name,
         r.quantity_produced,
-        r.production_cost_per_unit,
-        r.total_production_cost,
+        r.total_cost_per_unit,
+        r.total_cost,
         r.status,
         r.username,
         r.timestamp
@@ -241,8 +241,8 @@ const DispatchedMonthly = () => {
             >
               <option value="product_name">Product Name</option>
               <option value="quantity_produced">Quantity Produced</option>
-              <option value="production_cost_per_unit">Cost per Unit</option>
-              <option value="total_production_cost">Total Cost</option>
+              <option value="total_cost_per_unit">Cost per Unit</option>
+              <option value="total_cost">Total Cost</option>
               <option value="status">Status</option>
               <option value="timestamp">Date</option>
             </select>
@@ -358,8 +358,8 @@ const DispatchedMonthly = () => {
                 <div>
                   <div className="font-semibold mb-2 text-gray-700">Production Details</div>
                   <div className="text-sm text-gray-700">Quantity Produced: <span className="font-medium">{record.quantity_produced} units</span></div>
-                  <div className="text-sm text-gray-700">Cost per Unit: <span className="font-medium">₹{record.production_cost_per_unit}</span></div>
-                  <div className="text-sm text-gray-700">Total Cost: <span className="font-medium">₹{record.total_production_cost}</span></div>
+                  <div className="text-sm text-gray-700">Cost per Unit: <span className="font-medium">₹{record.total_cost_per_unit}</span></div>
+                  <div className="text-sm text-gray-700">Total Cost: <span className="font-medium">₹{record.total_cost}</span></div>
                 </div>
                 <div>
                   <div className="font-semibold mb-2 text-gray-700">Material Deductions</div>

@@ -28,6 +28,7 @@ const GROUP_TABLE_HEADER = [
   { key: 'cost_per_unit', label: 'Cost Per Unit' },
   { key: 'gst', label: 'GST %' },
   { key: 'gst_amount', label: 'GST Amount' },
+  { key: 'total_cost_without_gst', label: 'Without GST' },
   { key: 'total_cost', label: 'Total Cost' },
   { key: 'stock_limit', label: 'Stock Limit' },
   { key: 'actions', label: 'ACTIONS' },
@@ -98,6 +99,7 @@ const GroupTree: React.FC = () => {
           gst: Number(item.gst_percentage || item.gst || 0),
           gst_amount: Number(item.gst_amount || 0),
           total_cost: Number(item.total_cost || 0),
+          total_cost_without_gst: Number(item.total_cost_without_gst || 0),
           matches: undefined
         })) || [],
         subgroups: group.subgroups?.map((subgroup: any) => ({
@@ -112,6 +114,7 @@ const GroupTree: React.FC = () => {
             gst: Number(item.gst_percentage || item.gst || 0),
             gst_amount: Number(item.gst_amount || 0),
             total_cost: Number(item.total_cost || 0),
+            total_cost_without_gst: Number(item.total_cost_without_gst || 0),
             matches: undefined
           })) || [],
           matches: undefined
@@ -186,7 +189,7 @@ const GroupTree: React.FC = () => {
     setEditValues({});
   };
 
-  const handleEditSave = async (groupId: string, item: any) => {
+  const handleEditSave = async (_groupId: string, _item: any) => {
     const { updateStockDetails } = await import('../utils/inventoryApi');
 
     await updateStockDetails({
@@ -730,6 +733,10 @@ const GroupTree: React.FC = () => {
                         {/* GST Amount */}
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-gray-900 dark:text-white">
                           ₹{item.gst_amount || 0}
+                        </td>
+                        {/* Without GST */}
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-gray-900 dark:text-white">
+                          ₹{item.total_cost_without_gst || 0}
                         </td>
                         {/* Total Cost */}
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-gray-900 dark:text-white">₹{item.total_cost || 0}</td>

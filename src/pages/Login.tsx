@@ -4,6 +4,7 @@ import { Eye, EyeOff, LogIn, AlertCircle, Moon, Cloud } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../utils/authService';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { getFirstAllowedRoute } from '../utils/permissionUtils';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -52,13 +53,14 @@ const Login = () => {
       });
 
       if (response?.token) {
-        login(response.username, response.role === 'admin');
+        // storage is already handled in authService.loginWithCredentials
+        // we just update the context
+        login(response.username);
 
-        if (response.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
+        // Check if admin based on the newly stored permissions
+        // Redirect to the first allowed route based on permissions
+        const redirectPath = getFirstAllowedRoute(response.permissions || [], authService.isAdmin());
+        navigate(redirectPath);
       } else {
         setErrors(prev => ({
           ...prev,
@@ -142,8 +144,8 @@ const Login = () => {
                 type="text"
                 required
                 className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${errors.username
-                    ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900/30'
-                    : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30'
+                  ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900/30'
+                  : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30'
                   } bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500`}
                 placeholder="Enter your username"
                 value={formData.username}
@@ -169,8 +171,8 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   required
                   className={`w-full px-4 py-3 pr-12 border-2 rounded-xl transition-all duration-200 ${errors.password
-                      ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900/30'
-                      : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30'
+                    ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900/30'
+                    : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30'
                     } bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500`}
                   placeholder="Enter your password"
                   value={formData.password}

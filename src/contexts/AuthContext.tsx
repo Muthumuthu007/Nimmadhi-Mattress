@@ -5,14 +5,17 @@ interface AuthUser {
   username: string;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  permissions: string[];
 }
 
 interface AuthContextType {
   user: AuthUser;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (username: string, isAdmin: boolean) => void;
+  permissions: string[];
+  login: (username: string) => void;
   logout: () => void;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,31 +24,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser>({
     username: '',
     isAuthenticated: false,
-    isAdmin: false
+    isAdmin: false,
+    permissions: []
   });
 
   useEffect(() => {
     // Initialize state from authService on mount
     const token = authService.getToken();
-    const role = authService.getRole();
     const username = authService.getUsername();
+    const isAuth = authService.isAuthenticated();
 
-    if (token && username) {
+    if (token && username && isAuth) {
       setUser({
         username,
         isAuthenticated: true,
-        isAdmin: role === 'admin'
+        isAdmin: authService.isAdmin(),
+        permissions: authService.getPermissions()
       });
+    } else if (!isAuth && token) {
+      // Token expired or invalid
+      authService.logout();
     }
   }, []);
 
-  const login = (username: string, isAdmin: boolean) => {
+  const login = (username: string) => {
     // This function is mainly for updating the context state
     // The actual login API call happens in Login.tsx via authService
     setUser({
       username,
       isAuthenticated: true,
-      isAdmin
+      isAdmin: authService.isAdmin(),
+      permissions: authService.getPermissions()
     });
   };
 
@@ -54,8 +63,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser({
       username: '',
       isAuthenticated: false,
-      isAdmin: false
+      isAdmin: false,
+      permissions: []
     });
+  };
+
+  const hasPermission = (permission: string) => {
+    return user.permissions.includes(permission) || user.permissions.includes('admin');
   };
 
   return (
@@ -63,8 +77,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       isAuthenticated: user.isAuthenticated,
       isAdmin: user.isAdmin,
+      permissions: user.permissions,
       login,
-      logout
+      logout,
+      hasPermission
     }}>
       {children}
     </AuthContext.Provider>

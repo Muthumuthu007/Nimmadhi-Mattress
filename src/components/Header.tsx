@@ -12,7 +12,7 @@ import { ThemeToggle } from './ThemeToggle';
 
 export const Header = () => {
   const navigate = useNavigate();
-  const { logout, isAdmin } = useAuth();
+  const { logout, isAdmin, hasPermission } = useAuth();
   const { isDispatchedPageVisible } = usePermissions();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -44,73 +44,83 @@ export const Header = () => {
           <nav className="hidden md:flex items-center flex-1 justify-end">
             {/* Main Navigation Group */}
             <div className="flex items-center space-x-1 lg:space-x-2">
-              <NavLink
-                to="/dashboard/grn"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-white/20 text-white shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <ClipboardList className="h-4 w-4 mr-1.5" />
-                <span className="hidden lg:inline">GRN</span>
-              </NavLink>
+              {hasPermission('grn') && (
+                <NavLink
+                  to="/dashboard/grn"
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <ClipboardList className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">GRN</span>
+                </NavLink>
+              )}
 
-              <NavLink
-                to="/dashboard"
-                end
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-white/20 text-white shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <LayoutDashboard className="h-4 w-4 mr-1.5" />
-                <span className="hidden lg:inline">Dashboard</span>
-              </NavLink>
+              {hasPermission('dashboard') && (
+                <NavLink
+                  to="/dashboard"
+                  end
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <LayoutDashboard className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">Dashboard</span>
+                </NavLink>
+              )}
 
-              <NavLink
-                to="/dashboard/costing"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-white/20 text-white shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <Droplet className="h-4 w-4 mr-1.5" />
-                <span className="hidden lg:inline">Costing</span>
-              </NavLink>
+              {hasPermission('costing') && (
+                <NavLink
+                  to="/dashboard/costing"
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <Droplet className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">Costing</span>
+                </NavLink>
+              )}
 
-              <NavLink
-                to="/dashboard/inventory"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-white/20 text-white shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <PackageSearch className="h-4 w-4 mr-1.5" />
-                <span className="hidden lg:inline">Inventory</span>
-              </NavLink>
+              {hasPermission('inventory') && (
+                <NavLink
+                  to="/dashboard/inventory"
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <PackageSearch className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">Inventory</span>
+                </NavLink>
+              )}
 
-              <NavLink
-                to="/dashboard/production"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-white/20 text-white shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <Factory className="h-4 w-4 mr-1.5" />
-                <span className="hidden lg:inline">Production</span>
-              </NavLink>
+              {hasPermission('production') && (
+                <NavLink
+                  to="/dashboard/production"
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <Factory className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">Production</span>
+                </NavLink>
+              )}
 
-              {isDispatchedPageVisible && (
+              {isDispatchedPageVisible && hasPermission('dispatch') && (
                 <NavLink
                   to="/dashboard/dispatched"
                   className={({ isActive }) =>
@@ -125,18 +135,20 @@ export const Header = () => {
                 </NavLink>
               )}
 
-              <NavLink
-                to="/dashboard/reports"
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-white/20 text-white shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <FileText className="h-4 w-4 mr-1.5" />
-                <span className="hidden lg:inline">Reports</span>
-              </NavLink>
+              {hasPermission('reports') && (
+                <NavLink
+                  to="/dashboard/reports"
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <FileText className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">Reports</span>
+                </NavLink>
+              )}
             </div>
 
             {/* Separator */}

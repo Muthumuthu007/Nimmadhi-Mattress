@@ -12,6 +12,7 @@ export interface InventoryItem {
     stock_limit: number;
     unit: string;
     total_cost: number;
+    total_cost_without_gst: number;
     matches?: ReadonlyArray<SearchMatch>;
     [key: string]: any;
 }

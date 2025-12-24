@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Trash2, Users, Key, Eye, EyeOff, Search, AlertCircle,
-  Loader2, CheckCircle, UserPlus, Menu, X
+  Loader2, CheckCircle, UserPlus, Menu, X, Shield, Lock
 } from 'lucide-react';
 import { axiosInstance } from '../utils/axiosInstance';
 import { AdminSkeleton } from '../components/skeletons/AdminSkeleton';
@@ -19,14 +19,28 @@ interface PasswordChangeForm {
   confirmPassword: string;
 }
 
-
-
 interface CreateUserForm {
   username: string;
   password: string;
   confirmPassword: string;
-  role: string;
+  permissions: string[];
 }
+
+interface UpdatePermissionsForm {
+  username: string;
+  permissions: string[];
+}
+
+const AVAILABLE_PERMISSIONS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'inventory', label: 'Inventory' },
+  { id: 'grn', label: 'GRN' },
+  { id: 'costing', label: 'Costing' },
+  { id: 'production', label: 'Production' },
+  { id: 'dispatch', label: 'Dispatch' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'admin', label: 'Admin Panel' }
+];
 
 const Admin = () => {
   const [selectedSection, setSelectedSection] = useState<string>('users');
@@ -46,9 +60,15 @@ const Admin = () => {
     username: '',
     password: '',
     confirmPassword: '',
-    role: 'user'
+    permissions: []
   });
+  const [updatePermissionsForm, setUpdatePermissionsForm] = useState<UpdatePermissionsForm>({
+    username: '',
+    permissions: []
+  });
+
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -65,7 +85,8 @@ const Admin = () => {
   const sections = [
     { id: 'transactions', label: 'Delete Transaction', icon: Trash2 },
     { id: 'users', label: 'View Users', icon: Users },
-    { id: 'password', label: 'Change User Password', icon: Key },
+    { id: 'password', label: 'Change Password', icon: Key },
+    { id: 'permissions', label: 'Update Permissions', icon: Shield },
     { id: 'create', label: 'Create User', icon: UserPlus }
   ];
 
@@ -115,16 +136,16 @@ const Admin = () => {
       const response = await axiosInstance.post('/api/users/register/', {
         username: createUserForm.username,
         password: createUserForm.password,
-        role: createUserForm.role
+        permissions: createUserForm.permissions
       });
 
-      if (response.data && response.data.message === "User registered successfully.") {
-        setSuccessMessage(`User '${response.data.username}' registered successfully as ${response.data.role}`);
+      if (response.data && response.data.message) {
+        setSuccessMessage(`User '${response.data.username}' registered successfully.`);
         setCreateUserForm({
           username: '',
           password: '',
           confirmPassword: '',
-          role: 'user'
+          permissions: []
         });
         // Optionally refresh the users list if admin credentials are available
         if (viewUsersAdminUsername && viewUsersAdminPassword) {
@@ -139,6 +160,33 @@ const Admin = () => {
       }
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const handleUpdatePermissions = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setError(null);
+    setSuccessMessage(null);
+    setIsUpdatingPermissions(true);
+
+    try {
+      const response = await axiosInstance.post('/api/users/update-permissions/', {
+        username: updatePermissionsForm.username,
+        permissions: updatePermissionsForm.permissions
+      });
+
+      if (response.data && response.data.message) {
+        setSuccessMessage(response.data.message);
+        setUpdatePermissionsForm({
+          username: '',
+          permissions: []
+        });
+      }
+    } catch (error: any) {
+      setError(error?.response?.data?.error || error?.message || 'Failed to update permissions');
+    } finally {
+      setIsUpdatingPermissions(false);
     }
   };
 
@@ -728,17 +776,34 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    value={createUserForm.role}
-                    onChange={(e) => setCreateUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    required
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Permissions</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    {AVAILABLE_PERMISSIONS.map((perm) => (
+                      <label key={perm.id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={createUserForm.permissions.includes(perm.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCreateUserForm(prev => ({
+                                ...prev,
+                                permissions: [...prev.permissions, perm.id]
+                              }));
+                            } else {
+                              setCreateUserForm(prev => ({
+                                ...prev,
+                                permissions: prev.permissions.filter(p => p !== perm.id)
+                              }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{perm.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
                   <div className="relative">
@@ -805,6 +870,104 @@ const Admin = () => {
               </form>
             </div>
           )}
+
+          {selectedSection === 'permissions' && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg transition-colors">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Update User Permissions</h2>
+
+              {error && (
+                <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex">
+                      <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                    <button
+                      onClick={() => setError(null)}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="mb-4 bg-green-50 border-l-4 border-green-400 p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex">
+                      <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
+                      <p className="text-sm text-green-700">{successMessage}</p>
+                    </div>
+                    <button
+                      onClick={() => setSuccessMessage(null)}
+                      className="text-green-400 hover:text-green-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleUpdatePermissions} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                  <input
+                    type="text"
+                    placeholder="Enter username"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300"
+                    value={updatePermissionsForm.username}
+                    onChange={(e) => setUpdatePermissionsForm(prev => ({ ...prev, username: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Permissions</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    {AVAILABLE_PERMISSIONS.map((perm) => (
+                      <label key={perm.id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={updatePermissionsForm.permissions.includes(perm.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setUpdatePermissionsForm(prev => ({
+                                ...prev,
+                                permissions: [...prev.permissions, perm.id]
+                              }));
+                            } else {
+                              setUpdatePermissionsForm(prev => ({
+                                ...prev,
+                                permissions: prev.permissions.filter(p => p !== perm.id)
+                              }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{perm.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isUpdatingPermissions}
+                  className={`w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center justify-center ${isUpdatingPermissions ? 'opacity-75 cursor-not-allowed' : ''
+                    }`}
+                >
+                  {isUpdatingPermissions ? (
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  ) : (
+                    <Shield className="h-5 w-5 mr-2" />
+                  )}
+                  {isUpdatingPermissions ? 'Updating Permissions...' : 'Update Permissions'}
+                </button>
+              </form>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
