@@ -1,5 +1,5 @@
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Dashboard from '../pages/Dashboard';
 import GRN from '../pages/GRN';
@@ -130,13 +130,13 @@ export const router = createBrowserRouter([
         path: 'reports',
         element: (
           <PermissionGuard permission="reports">
-            <Reports />
+            <Outlet />
           </PermissionGuard>
         ),
         children: [
           {
             index: true,
-            element: <Navigate to="daily" replace />, // Optional: Redirect to first report sub-tab
+            element: <Reports />,
           },
           {
             path: 'daily',
