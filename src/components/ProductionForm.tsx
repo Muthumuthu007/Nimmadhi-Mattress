@@ -29,6 +29,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const formTopRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedProduction = localStorage.getItem('lastProduction');
@@ -101,6 +102,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         const finalCost = data.total_cost ?? data['total_cost'] ?? data.total_production_cost ?? 0;
         console.log('finalCost selected:', finalCost);
         setSuccessMessage(`Successfully produced ${data.quantity_produced} units at a total cost of ₹${Number(finalCost).toFixed(2)}`);
+        formTopRef.current?.scrollIntoView({ behavior: 'smooth' });
         onProductionComplete();
       } else if (data && data.can_produce === false && data.insufficient_materials) {
         setError(data.reason || 'Insufficient stock to complete production.');
@@ -165,7 +167,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   } : undefined;
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors duration-300">
+    <div ref={formTopRef} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors duration-300">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Start Production</h2>
         <button
