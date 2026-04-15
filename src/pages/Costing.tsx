@@ -1,877 +1,586 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Search, Loader2, X, ChevronDown, ChevronUp, Filter, RefreshCw, Copy, Maximize, Minimize } from 'lucide-react';
+import {
+  Plus, Search, Loader2, X, RefreshCw, Pencil, Trash2,
+  Package, ChevronRight, AlertCircle, CheckCircle2, Lock, ArrowRight
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { createCastingProduct, CreateCastingPayload, viewCastings, CastingProductResponse, moveToProduction, MoveToProductionPayload, deleteCastingProduct, DeleteCastingPayload } from '../utils/castingApi';
+import {
+  createCastingProduct,
+  viewCastings,
+  CastingProductResponse,
+  moveToProduction,
+  deleteCastingProduct,
+  updateCastingQuantities,
+} from '../utils/castingApi';
 import { apiClient } from '../utils/api';
 import { RawMaterial } from '../types';
 import { CostingSkeleton } from '../components/skeletons/CostingSkeleton';
+import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
 
-interface SelectedIngredient {
-  itemId: string;
-  name: string;
-  stockAvailable: number;
-  unitCost: number;
-  qtyUsed: number | string;
-  subtotal: number;
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// Format Currency safely guards against undefined/NaN values
-const formatMoney = (amount: number | undefined | null) => {
-  const numericValue = typeof amount === 'number' ? amount : Number(amount ?? 0);
-  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-  return `₹${safeValue.toFixed(2)}`;
+const formatMoney = (amount: number | string | undefined | null): string => {
+  const num = parseFloat(String(amount ?? 0));
+  return `₹${(Number.isFinite(num) ? num : 0).toFixed(2)}`;
 };
 
-// CostingCard Component
+const parseQty = (val: string | number): number => {
+  const n = parseFloat(String(val));
+  return Number.isFinite(n) ? n : 0;
+};
+
+// ─── Costing Card ─────────────────────────────────────────────────────────────
+
 interface CostingCardProps {
   product: CastingProductResponse;
-  onMove: (productId: string) => void;
-  onDelete: (productId: string) => void;
-  onDuplicate: (product: CastingProductResponse) => void;
+  onMove: (id: string) => void;
+  onEdit: (product: CastingProductResponse) => void;
+  onDelete: (id: string, name: string) => void;
   isMoving?: boolean;
-  isDeleting?: boolean;
 }
 
-const CostingCard: React.FC<CostingCardProps> = ({ product, onMove, onDelete, onDuplicate, isMoving = false, isDeleting = false }) => {
+const CostingCard: React.FC<CostingCardProps> = ({
+  product, onMove, onEdit, onDelete, isMoving = false,
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const materialEntries = Object.entries(product.stock_needed ?? {});
+  const visibleMaterials = expanded ? materialEntries : materialEntries.slice(0, 4);
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col transition-colors">
-      {/* Header */}
-      <div className="bg-gray-100 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
-        <div>
-          <h3 className="font-bold text-lg text-gray-800 dark:text-white">{product.product_name}</h3>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Created: {new Date(product.created_at).toLocaleDateString()}
-          </span>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col transition-shadow hover:shadow-md">
+      {/* Card Header */}
+      <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-white leading-tight">{product.product_name}</h3>
+            <p className="text-orange-100 text-xs mt-0.5">
+              Created: {new Date(product.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+          <span className="bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full">Draft</span>
         </div>
-        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded-full">Draft</span>
       </div>
 
       {/* Body */}
-      <div className="p-4 flex-grow">
-        {/* Section A: Stock Recipe */}
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1">Stock Composition</p>
-          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded text-sm">
-            {Object.entries(product.stock_needed).map(([key, value]) => (
-              <div key={key} className="flex justify-between border-b border-gray-200 dark:border-gray-600 last:border-0 py-1">
-                <span className="text-gray-600 dark:text-gray-300">{key}</span>
-                <span className="font-medium text-gray-800 dark:text-white">Qty: {value}</span>
-              </div>
-            ))}
+      <div className="p-5 flex-1 space-y-4">
+        {/* Materials — Backend Calculated */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Materials</span>
+            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Backend-calculated</span>
           </div>
+          {materialEntries.length === 0 ? (
+            <p className="text-sm text-gray-400 italic">No materials calculated</p>
+          ) : (
+            <div className="space-y-1">
+              {visibleMaterials.map(([name, qty]) => (
+                <div key={name} className="flex justify-between items-center py-1 border-b border-gray-50 last:border-0">
+                  <span className="text-sm text-gray-700 truncate max-w-[65%]" title={name}>{name}</span>
+                  <span className="text-sm font-bold text-gray-900 tabular-nums">{parseQty(qty)}</span>
+                </div>
+              ))}
+              {materialEntries.length > 4 && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-xs text-amber-600 hover:text-amber-700 font-semibold mt-1 flex items-center gap-0.5"
+                >
+                  {expanded ? 'Show less' : `+${materialEntries.length - 4} more`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Section B: Cost Breakdown */}
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1">Cost Analysis</p>
-          <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
+        {/* Max Producible */}
+        {product.max_produce !== undefined && (
+          <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2">
+            <span className="text-xs font-semibold text-green-700">Max Producible</span>
+            <span className="text-sm font-bold text-green-800">{product.max_produce.toLocaleString('en-IN')}</span>
+          </div>
+        )}
+
+        {/* Cost Breakdown */}
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Cost Breakdown</p>
+          <div className="space-y-1 text-sm text-gray-600">
             <div className="flex justify-between">
-              <span>Labour:</span> <span>{formatMoney(product.labour_cost)}</span>
+              <span>Materials</span><span className="font-medium">{formatMoney(product.production_cost_total)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Transport:</span> <span>{formatMoney(product.transport_cost)}</span>
+              <span>Labour</span><span className="font-medium">{formatMoney(product.labour_cost)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Other:</span> <span>{formatMoney(product.other_cost)}</span>
+              <span>Transport</span><span className="font-medium">{formatMoney(product.transport_cost)}</span>
             </div>
-            <div className="flex justify-between text-red-500 dark:text-red-400">
-              <span>Wastage ({product.wastage_percent}%):</span>
-              <span>{formatMoney(product.wastage_amount)}</span>
+            <div className="flex justify-between">
+              <span>Other</span><span className="font-medium">{formatMoney(product.other_cost)}</span>
+            </div>
+            <div className="flex justify-between text-red-600">
+              <span>Wastage ({product.wastage_percent}%)</span>
+              <span className="font-medium">{formatMoney(product.wastage_amount)}</span>
             </div>
           </div>
-        </div>
-
-        {/* Total Cost Highlight */}
-        <div className="mt-2 pt-2 border-t border-dashed border-gray-300 dark:border-gray-600 flex justify-between items-center">
-          <span className="font-bold text-gray-600 dark:text-gray-300">Total Est. Cost</span>
-          <span className="text-xl font-bold text-green-600 dark:text-green-400">{formatMoney(product.total_cost)}</span>
+          <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex justify-between items-center">
+            <span className="font-bold text-gray-700">Total Est. Cost</span>
+            <span className="text-xl font-bold text-green-600">{formatMoney(product.total_cost)}</span>
+          </div>
         </div>
       </div>
 
-      {/* Footer: Actions */}
-      <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600 flex gap-2">
+      {/* Actions */}
+      <div className="px-5 pb-4 pt-1 grid grid-cols-3 gap-2">
         <button
           onClick={() => onMove(product.product_id)}
           disabled={isMoving}
-          className={`flex-1 bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white text-sm font-medium py-2 px-4 rounded transition-colors shadow-sm flex items-center justify-center ${isMoving ? 'opacity-75 cursor-not-allowed' : ''
-            }`}
+          className={`col-span-1 flex items-center justify-center gap-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm ${isMoving ? 'opacity-75 cursor-not-allowed' : ''}`}
         >
-          {isMoving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Moving...
-            </>
-          ) : (
-            'Move to Production'
-          )}
+          {isMoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+          {isMoving ? 'Moving' : 'Produce'}
         </button>
         <button
-          onClick={() => onDuplicate(product)}
-          className="flex-1 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded transition-colors shadow-sm flex items-center justify-center"
-          title="Duplicate Costing"
+          onClick={() => onEdit(product)}
+          className="col-span-1 flex items-center justify-center gap-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
         >
-          <Copy className="h-4 w-4 mr-1.5" />
-          Duplicate
+          <Pencil className="h-3.5 w-3.5" />
+          Edit Qty
         </button>
         <button
-          onClick={() => onDelete(product.product_id)}
-          disabled={isDeleting}
-          className={`flex-1 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 border border-gray-300 dark:border-gray-600 text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center ${isDeleting ? 'opacity-75 cursor-not-allowed' : ''
-            }`}
-          title="Delete Draft"
+          onClick={() => onDelete(product.product_id, product.product_name)}
+          className="col-span-1 flex items-center justify-center gap-1 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-colors"
         >
-          {isDeleting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Deleting...
-            </>
-          ) : (
-            'Delete'
-          )}
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
         </button>
       </div>
     </div>
   );
 };
 
-const Costing: React.FC = () => {
-  const location = useLocation();
-  const { user } = useAuth();
-  const [castings, setCastings] = useState<CastingProductResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showWorkbench, setShowWorkbench] = useState(false);
-  const [availableMaterials, setAvailableMaterials] = useState<RawMaterial[]>([]);
-  const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchFilter, setSearchFilter] = useState<'name' | 'id' | 'cost' | 'all'>('all');
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
-  const [castingName, setCastingName] = useState('');
-  const [selectedIngredients, setSelectedIngredients] = useState<SelectedIngredient[]>([]);
-  const [wastagePercent, setWastagePercent] = useState('');
-  const [transportCost, setTransportCost] = useState('');
-  const [labourCost, setLabourCost] = useState('');
-  const [otherCost, setOtherCost] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [movingProductId, setMovingProductId] = useState<string | null>(null);
-  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
-  const [originalCostingData, setOriginalCostingData] = useState<CastingProductResponse | null>(null);
-  const [priceChanges, setPriceChanges] = useState<{ [itemId: string]: { oldPrice: number; newPrice: number } }>({});
-  const [isFullscreen, setIsFullscreen] = useState(false);
+// ─── Edit Quantities Modal ────────────────────────────────────────────────────
 
-  // Calculate total cost
-  const totalCost = selectedIngredients.reduce((sum, ing) => sum + ing.subtotal, 0);
-  const wastageAmount = (totalCost * parseFloat(wastagePercent || '0')) / 100;
-  const finalTotalCost = totalCost + wastageAmount + parseFloat(transportCost || '0') + parseFloat(labourCost || '0') + parseFloat(otherCost || '0');
+interface EditQtyModalProps {
+  product: CastingProductResponse;
+  onClose: () => void;
+  onSuccess: (updatedProduct: CastingProductResponse) => void;
+}
 
-  // Fetch available materials
-  const fetchAvailableMaterials = async () => {
-    setIsLoadingMaterials(true);
-    try {
-      const response = await apiClient.post('/api/stock/inventory/', {});
-
-      const data = response.data;
-
-      // Handle different response structures
-      const inventoryArray = Array.isArray(data)
-        ? data
-        : (data.inventory || data.data?.inventory || []);
-
-      if (Array.isArray(inventoryArray) && inventoryArray.length > 0) {
-        const formattedMaterials: RawMaterial[] = inventoryArray.map((item: any) => ({
-          id: item.item_id,
-          name: item.name,
-          quantity: item.quantity,
-          unit: item.unit,
-          cost: parseFloat(item.cost_per_unit) || 0,
-          available: item.total_quantity,
-          minStockLimit: item.stock_limit,
-          defectiveQuantity: item.defective,
-          created_at: item.created_at || new Date().toISOString()
-        }));
-        setAvailableMaterials(formattedMaterials);
-      } else {
-        console.warn('No inventory data found in response:', data);
-        setAvailableMaterials([]);
-      }
-    } catch (error) {
-      console.error('Error fetching materials:', error);
-      setError('Failed to fetch available materials');
-    } finally {
-      setIsLoadingMaterials(false);
-    }
-  };
-
-  // Fetch casting products
-  const fetchCastings = async () => {
-    setIsLoading(true);
-    try {
-      const products = await viewCastings();
-      setCastings(products);
-    } catch (error) {
-      console.error('Error fetching castings:', error);
-      setError('Failed to fetch casting products');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Filter castings based on search query
-  const filteredCastings = castings.filter(casting =>
-    casting.product_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Move to Production (Action 3)
-  const handleMoveToProduction = async (productId: string) => {
-    setMovingProductId(productId);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const payload: MoveToProductionPayload = {
-        operation: "MoveToProduction",
-        product_id: productId,
-        username: user.username
-      };
-
-      const response = await moveToProduction(payload);
-
-      if (response.message === "Casting product moved to production successfully") {
-        setSuccess(`Success! ${productId} is now a live product.`);
-        // Refresh list or remove item locally
-        setCastings(prev => prev.filter(item => item.product_id !== productId));
-
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccess(null);
-        }, 3000);
-      } else {
-        setError('Failed to move product to production');
-      }
-    } catch (err: any) {
-      console.error('Error moving to production:', err);
-      setError(err.message || 'Failed to move casting product to production');
-    } finally {
-      setMovingProductId(null);
-    }
-  };
-
-  const handleDeleteCasting = async (productId: string) => {
-    setDeletingProductId(productId);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const payload: DeleteCastingPayload = {
-        operation: 'DeleteCastingProduct',
-        product_id: productId,
-        username: user.username
-      };
-
-      const response = await deleteCastingProduct(payload);
-
-      if (response.message?.toLowerCase().includes('deleted')) {
-        setSuccess(`Casting ${productId} deleted successfully.`);
-        setCastings(prev => prev.filter(item => item.product_id !== productId));
-      } else {
-        setError(response.message || 'Failed to delete casting product');
-      }
-    } catch (err: any) {
-      console.error('Error deleting casting:', err);
-      setError(err.message || 'Failed to delete casting product');
-    } finally {
-      setDeletingProductId(null);
-    }
-  };
-
-  useEffect(() => {
-    fetchCastings();
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (showWorkbench) {
-      fetchAvailableMaterials();
-    }
-  }, [showWorkbench]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
-        setIsFilterDropdownOpen(false);
-      }
-    };
-
-    if (isFilterDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isFilterDropdownOpen]);
-
-  // Filter materials based on search
-  const filteredMaterials = availableMaterials.filter(material => {
-    if (!searchQuery.trim()) return true;
-
-    const query = searchQuery.toLowerCase();
-    switch (searchFilter) {
-      case 'name':
-        return material.name.toLowerCase().includes(query);
-      case 'id':
-        return material.id.toLowerCase().includes(query);
-      case 'cost':
-        return material.cost.toString().includes(query);
-      case 'all':
-      default:
-        return (
-          material.name.toLowerCase().includes(query) ||
-          material.id.toLowerCase().includes(query) ||
-          material.cost.toString().includes(query)
-        );
-    }
+const EditQtyModal: React.FC<EditQtyModalProps> = ({ product, onClose, onSuccess }) => {
+  const [quantities, setQuantities] = useState<{ [name: string]: string }>(() => {
+    const init: { [name: string]: string } = {};
+    Object.entries(product.stock_needed ?? {}).forEach(([name, qty]) => {
+      init[name] = String(parseQty(qty));
+    });
+    return init;
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getFilterLabel = () => {
-    switch (searchFilter) {
-      case 'name':
-        return 'Name';
-      case 'id':
-        return 'ID';
-      case 'cost':
-        return 'Cost';
-      case 'all':
-      default:
-        return 'All';
-    }
-  };
-
-  // Add material to selected ingredients
-  const handleAddMaterial = (material: RawMaterial) => {
-    const exists = selectedIngredients.find(ing => ing.itemId === material.id);
-    if (exists) {
-      // Update quantity if already exists
-      const updated = selectedIngredients.map(ing => {
-        if (ing.itemId === material.id) {
-          const currentQty = typeof ing.qtyUsed === 'string' ? parseFloat(ing.qtyUsed) || 0 : ing.qtyUsed;
-          const newQty = currentQty + 1;
-          return { ...ing, qtyUsed: newQty, subtotal: newQty * ing.unitCost };
-        }
-        return ing;
-      });
-      setSelectedIngredients(updated);
-    } else {
-      // Add new ingredient
-      setSelectedIngredients([
-        ...selectedIngredients,
-        {
-          itemId: material.id,
-          name: material.name,
-          stockAvailable: material.available,
-          unitCost: material.cost,
-          qtyUsed: 1,
-          subtotal: material.cost
-        }
-      ]);
-    }
-    setSearchQuery('');
-  };
-
-  // Update quantity for an ingredient
-  const handleUpdateQuantity = (itemId: string, newQty: string | number) => {
-    // If input is a string, we still want to calculate subtotal based on numeric value
-    // If it's an empty string, treat it as 0 for subtotal but keep it empty in input
-    const numericQty = typeof newQty === 'string' ? parseFloat(newQty) : newQty;
-
-    // Allow empty string or valid number (including 0)
-    // We don't strictly block negative numbers here to allow typing flexibility, 
-    // but subtotal logic could handle it. Original code had `if (newQty < 0) return;`
-    // We'll re-add a check if numericQty is valid number and negative.
-    if (!isNaN(numericQty) && numericQty < 0) return;
-
-    const validNumericQty = isNaN(numericQty) ? 0 : numericQty;
-
-    const updated = selectedIngredients.map(ing =>
-      ing.itemId === itemId
-        ? { ...ing, qtyUsed: newQty, subtotal: validNumericQty * ing.unitCost }
-        : ing
-    );
-    setSelectedIngredients(updated);
-  };
-
-  // Remove ingredient
-  const handleRemoveIngredient = (itemId: string) => {
-    setSelectedIngredients(selectedIngredients.filter(ing => ing.itemId !== itemId));
-  };
-
-  // Save casting
-  const handleSaveCasting = async () => {
-    if (!castingName.trim()) {
-      setError('Please enter a casting reference name');
-      return;
-    }
-
-    if (selectedIngredients.length === 0) {
-      setError('Please select at least one ingredient');
-      return;
-    }
-
+  const handleSave = async () => {
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
-
     try {
-      const stockNeeded: { [key: string]: number } = {};
-      selectedIngredients.forEach(ing => {
-        stockNeeded[ing.itemId] = typeof ing.qtyUsed === 'string'
-          ? (parseFloat(ing.qtyUsed) || 0)
-          : ing.qtyUsed;
+      const stockNeeded: { [name: string]: number } = {};
+      Object.entries(quantities).forEach(([name, val]) => {
+        stockNeeded[name] = parseQty(val);
       });
 
-      const payload: CreateCastingPayload = {
-        operation: "CreateCastingProduct",
-        product_name: castingName,
+      // New API — no operation or username required
+      const response = await updateCastingQuantities({
+        product_id: product.product_id,
         stock_needed: stockNeeded,
-        username: user.username,
-        wastage_percent: parseFloat(wastagePercent || '0'),
-        transport_cost: parseFloat(transportCost || '0'),
-        labour_cost: parseFloat(labourCost || '0'),
-        other_cost: parseFloat(otherCost || '0')
+      });
+
+      // Build fully updated product from the rich API response
+      // response.stock_needed has numbers, cast to string map for CastingProductResponse
+      const updatedStockNeeded: { [name: string]: string } = {};
+      Object.entries(response.stock_needed).forEach(([name, qty]) => {
+        updatedStockNeeded[name] = String(qty);
+      });
+
+      const updatedProduct: CastingProductResponse = {
+        ...product,
+        stock_needed: updatedStockNeeded,
+        max_produce: response.max_produce,
+        production_cost_breakdown: Object.fromEntries(
+          Object.entries(response.production_cost_breakdown).map(([k, v]) => [k, String(v)])
+        ),
+        production_cost_total: response.production_cost_total,
+        wastage_percent: response.wastage_percent,
+        wastage_amount: response.wastage_amount,
+        labour_cost: response.labour_cost,
+        transport_cost: response.transport_cost,
+        other_cost: response.other_cost,
+        total_cost: response.total_cost,
       };
 
-      const response = await createCastingProduct(payload);
-
-      if (response.message === "Casting product created successfully") {
-        setSuccess('Product created successfully');
-        // Reset form
-        setCastingName('');
-        setSelectedIngredients([]);
-        setWastagePercent('');
-        setTransportCost('');
-        setLabourCost('');
-        setOtherCost('');
-        setSearchQuery('');
-
-        // Refresh castings list
-        fetchCastings();
-
-        // Close workbench after 2 seconds
-        setTimeout(() => {
-          setShowWorkbench(false);
-          setSuccess(null);
-        }, 2000);
-      } else {
-        setError('Product not created');
-      }
+      onSuccess(updatedProduct);
     } catch (err: any) {
-      setError(err.message || 'Failed to create casting product');
+      setError(err.message || 'Failed to update quantities');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handle duplicate costing
-  const handleDuplicateCosting = async (product: CastingProductResponse) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Edit Material Quantities</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{product.product_name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Info Banner */}
+        <div className="mx-6 mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+          <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-700 font-medium">
+            Only material quantities can be adjusted. Material selection and product structure are locked.
+          </p>
+        </div>
+
+        {/* Quantity Inputs */}
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 border-l-4 border-red-500 rounded-lg px-3 py-2.5">
+              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
+            {Object.entries(quantities).map(([name, qty]) => (
+              <div key={name} className="flex items-center justify-between px-4 py-3 gap-4">
+                <span className="text-sm font-medium text-gray-800 flex-1 truncate" title={name}>{name}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={qty}
+                  onChange={(e) => setQuantities(prev => ({ ...prev, [name]: e.target.value }))}
+                  className="w-28 px-3 py-1.5 border-2 border-gray-300 rounded-lg text-center text-sm font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  aria-label={`Quantity for ${name}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+          <button onClick={onClose} className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm ${isSaving ? 'opacity-75 cursor-not-allowed' : ''}`}
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Create Drawer ────────────────────────────────────────────────────────────
+
+interface CreateDrawerProps {
+  username: string;
+  onClose: () => void;
+  onSuccess: (product: CastingProductResponse) => void;
+}
+
+const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSuccess }) => {
+  const [productName, setProductName] = useState('');
+  const [labourCost, setLabourCost] = useState('');
+  const [transportCost, setTransportCost] = useState('');
+  const [otherCost, setOtherCost] = useState('');
+  const [wastagePercent, setWastagePercent] = useState('');
+
+  const [availableMaterials, setAvailableMaterials] = useState<RawMaterial[]>([]);
+  const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
+  const [materialSearch, setMaterialSearch] = useState('');
+  const [selectedItems, setSelectedItems] = useState<string[]>([]); // material names
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<any | null>(null); // holds the create response to show calculated qtys
+
+  // Fetch materials on mount
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      setIsLoadingMaterials(true);
+      try {
+        const response = await apiClient.post('/api/stock/inventory/', {});
+        const data = response.data;
+        const inventoryArray = Array.isArray(data) ? data : (data.inventory || data.data?.inventory || []);
+        if (Array.isArray(inventoryArray)) {
+          const formatted: RawMaterial[] = inventoryArray.map((item: any) => ({
+            id: item.item_id,
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            cost: parseFloat(item.cost_per_unit) || 0,
+            available: item.total_quantity,
+            minStockLimit: item.stock_limit,
+            defectiveQuantity: item.defective,
+            created_at: item.created_at || new Date().toISOString(),
+          }));
+          setAvailableMaterials(formatted);
+        }
+      } catch {
+        setError('Failed to load inventory materials');
+      } finally {
+        setIsLoadingMaterials(false);
+      }
+    };
+    fetchMaterials();
+  }, []);
+
+  const filteredMaterials = availableMaterials.filter(m =>
+    m.name.toLowerCase().includes(materialSearch.toLowerCase())
+  );
+
+  const toggleMaterial = (name: string) => {
+    setSelectedItems(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
+  };
+
+  const removeMaterial = (name: string) => {
+    setSelectedItems(prev => prev.filter(n => n !== name));
+  };
+
+  const handleSubmit = async () => {
+    if (!productName.trim()) { setError('Product name is required'); return; }
+    if (selectedItems.length === 0) { setError('Select at least one material'); return; }
+
+    setIsSaving(true);
     setError(null);
-    setSuccess(null);
-    setIsDuplicateMode(true);
-    setOriginalCostingData(product);
+    setResult(null);
 
     try {
-      // Fetch current inventory to validate materials and check for price changes
-      await fetchAvailableMaterials();
+      const response = await createCastingProduct({
+        product_name: productName.trim(),
+        selected_items: selectedItems,
+        username,
+        labour_cost: parseFloat(labourCost || '0'),
+        transport_cost: parseFloat(transportCost || '0'),
+        other_cost: parseFloat(otherCost || '0'),
+        wastage_percent: parseFloat(wastagePercent || '0'),
+      });
 
-      // Wait a bit for materials to load
-      setTimeout(() => {
-        // Set the costing name with " (Copy)" suffix
-        setCastingName(`${product.product_name} (Copy)`);
+      // Show the calculated result before closing
+      setResult(response);
 
-        // Set additional costs
-        setWastagePercent(product.wastage_percent.toString());
-        setTransportCost(product.transport_cost.toString());
-        setLabourCost(product.labour_cost.toString());
-        setOtherCost(product.other_cost.toString());
+      // Build a CastingProductResponse from the create response and notify parent
+      const newProduct: CastingProductResponse = {
+        product_id: response.product_id,
+        product_name: response.product_name,
+        stock_needed: response.stock_needed,
+        max_produce: response.max_produce,
+        production_cost_breakdown: response.production_cost_breakdown,
+        production_cost_total: response.production_cost_total,
+        wastage_percent: response.wastage_percent,
+        wastage_amount: response.wastage_amount,
+        labour_cost: response.labour_cost,
+        transport_cost: response.transport_cost,
+        other_cost: response.other_cost,
+        total_cost: response.total_cost,
+        created_at: new Date().toISOString(),
+      };
 
-        // Convert stock_needed to selected ingredients
-        const ingredients: SelectedIngredient[] = [];
-        const detectedPriceChanges: { [itemId: string]: { oldPrice: number; newPrice: number } } = {};
-
-        Object.entries(product.stock_needed).forEach(([itemId, quantity]) => {
-          // Find the material in current inventory
-          const currentMaterial = availableMaterials.find(m => m.id === itemId);
-
-          if (currentMaterial) {
-            ingredients.push({
-              itemId: itemId,
-              name: currentMaterial.name,
-              stockAvailable: currentMaterial.available,
-              unitCost: currentMaterial.cost,
-              qtyUsed: quantity,
-              subtotal: quantity * currentMaterial.cost
-            });
-          } else {
-            // Material no longer exists in inventory - still add it but with warning
-            console.warn(`Material ${itemId} from original costing not found in current inventory`);
-          }
-        });
-
-        setSelectedIngredients(ingredients);
-        setPriceChanges(detectedPriceChanges);
-
-        // Show info message about duplication
-        setSuccess(`Duplicating "${product.product_name}". Review and modify as needed before saving.`);
-
-        // Open workbench
-        setShowWorkbench(true);
-      }, 300); // Small delay to ensure materials are loaded
-
+      // Notify parent after a short display so user can see results
+      setTimeout(() => { onSuccess(newProduct); }, 2500);
     } catch (err: any) {
-      console.error('Error duplicating costing:', err);
-      setError('Failed to load materials for duplication. Please try again.');
-      setIsDuplicateMode(false);
-      setOriginalCostingData(null);
+      setError(err.message || 'Failed to create costing');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Close workbench
-  const handleCloseWorkbench = () => {
-    setShowWorkbench(false);
-    setCastingName('');
-    setSelectedIngredients([]);
-    setWastagePercent('');
-    setTransportCost('');
-    setLabourCost('');
-    setOtherCost('');
-    setSearchQuery('');
-    setSearchFilter('all');
-    setError(null);
-    setSuccess(null);
-    setIsDuplicateMode(false);
-    setOriginalCostingData(null);
-    setPriceChanges({});
-    setIsFullscreen(false);
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Enhanced Header Section */}
-      <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-yellow-600 dark:from-orange-800 dark:via-amber-800 dark:to-yellow-800 rounded-2xl shadow-xl p-6 md:p-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl flex flex-col">
+
+        {/* Drawer Header */}
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-5 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white">Product Costing / Prototyping</h1>
-            <p className="text-orange-100 dark:text-orange-200 text-sm md:text-base mt-1">
-              Draft new products and calculate costs using existing inventory.
-            </p>
+            <h2 className="text-xl font-bold text-white">Create New Costing</h2>
+            <p className="text-orange-100 text-sm mt-0.5">Select materials — quantities are calculated by the system</p>
           </div>
-          <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
-            <button
-              onClick={fetchCastings}
-              disabled={isLoading}
-              className={`flex items-center px-4 md:px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl font-medium shadow-lg hover:bg-white/30 hover:shadow-xl hover:scale-105 transition-all duration-200 text-sm md:text-base whitespace-nowrap ${isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              title="Refresh Costing List"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={() => setShowWorkbench(true)}
-              className="flex items-center px-4 md:px-5 py-2.5 bg-white text-orange-600 dark:text-orange-700 rounded-xl font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-sm md:text-base whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create New Sample
-            </button>
-          </div>
+          <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+            <X className="h-5 w-5 text-white" />
+          </button>
         </div>
-      </div>
 
-      {/* Error and Success Messages */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-400 dark:border-red-500 p-4 rounded-md">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-        </div>
-      )}
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-      {success && (
-        <div className="bg-green-50 dark:bg-green-900/30 border-l-4 border-green-400 dark:border-green-500 p-4 rounded-md">
-          <p className="text-sm text-green-700 dark:text-green-300">{success}</p>
-        </div>
-      )}
-
-      {/* Search Bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-4 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search costing products by name..."
-              className="w-full pl-10 pr-10 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-900/30 transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                title="Clear search"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {filteredCastings.length} result{filteredCastings.length !== 1 ? 's' : ''}
+          {/* Result panel — shown after successful creation */}
+          {result && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="font-bold text-green-800">Costing Created Successfully!</span>
+              </div>
+              <p className="text-sm text-green-700 mb-3">Backend-calculated material quantities:</p>
+              <div className="space-y-1.5">
+                {Object.entries(result.stock_needed ?? {}).map(([name, qty]) => (
+                  <div key={name} className="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-green-100">
+                    <span className="text-sm font-medium text-gray-800">{name}</span>
+                    <span className="text-sm font-bold text-green-700">{parseQty(qty as string)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-green-200 flex justify-between">
+                <span className="text-sm font-semibold text-green-700">Total Cost</span>
+                <span className="text-lg font-bold text-green-800">{formatMoney(result.total_cost)}</span>
+              </div>
+              <p className="text-xs text-green-600 mt-2 text-center">Closing in a moment…</p>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Castings Grid */}
-      {isLoading ? (
-        <CostingSkeleton />
-      ) : filteredCastings.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          {searchQuery ? (
+          {!result && (
             <>
-              <p className="text-gray-500 text-lg">No costing products match your search.</p>
-              <button
-                onClick={() => setSearchQuery('')}
-                className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium"
-              >
-                Clear search
-              </button>
-            </>
-          ) : (
-            <p className="text-gray-500 text-lg">No costing drafts found. Create your first sample to get started.</p>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredCastings.map((product) => (
-            <CostingCard
-              key={product.product_id}
-              product={product}
-              onMove={handleMoveToProduction}
-              onDelete={handleDeleteCasting}
-              onDuplicate={handleDuplicateCosting}
-              isMoving={movingProductId === product.product_id}
-              isDeleting={deletingProductId === product.product_id}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Workbench Drawer */}
-      {showWorkbench && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={handleCloseWorkbench} />
-          <div className={`absolute right-0 top-0 h-full bg-white shadow-xl flex flex-col transition-all duration-300 ${isFullscreen ? 'w-full' : 'w-full max-w-3xl'}`}>
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200 bg-indigo-50">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {isDuplicateMode ? 'Duplicate Costing' : 'Create New Sample'}
-                  </h2>
-                  {isDuplicateMode && originalCostingData && (
-                    <p className="text-sm text-indigo-600 mt-1">
-                      Creating a copy of "{originalCostingData.product_name}"
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsFullscreen(!isFullscreen)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                    aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                  >
-                    {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-                  </button>
-                  <button
-                    onClick={handleCloseWorkbench}
-                    className="text-gray-400 hover:text-gray-600"
-                    title="Close"
-                    aria-label="Close workbench"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <input
-                  type="text"
-                  placeholder="Costing Reference Name (e.g., Test Bundle A)"
-                  className="flex-1 mr-4 px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                  value={castingName}
-                  onChange={(e) => setCastingName(e.target.value)}
-                />
-                <div className="bg-white px-4 py-2 rounded-md border border-indigo-200">
-                  <span className="text-sm text-gray-600">Current Total Cost:</span>
-                  <span className="ml-2 text-lg font-bold text-indigo-600">
-                    ₹{finalTotalCost.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {error && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex items-start gap-2 bg-red-50 border-l-4 border-red-500 rounded-lg px-4 py-3">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
                   <p className="text-sm text-red-700">{error}</p>
                 </div>
               )}
 
-              {success && (
-                <div className="bg-green-50 border-l-4 border-green-400 p-4">
-                  <p className="text-sm text-green-700">{success}</p>
-                </div>
-              )}
-
-              {/* Section B: Inventory Selector */}
+              {/* Step 1 — Product Name */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900">Inventory Selector</h3>
-                  <span className="text-sm text-gray-500">
-                    {filteredMaterials.length} {filteredMaterials.length === 1 ? 'item' : 'items'}
-                  </span>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Product / Costing Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., SIVA MAT 75×60×6"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all font-medium"
+                  value={productName}
+                  onChange={e => setProductName(e.target.value)}
+                />
+              </div>
+
+              {/* Step 2 — Additional Costs */}
+              <div>
+                <p className="text-sm font-bold text-gray-700 mb-3">Costs & Overheads</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Labour Cost (₹)', value: labourCost, setter: setLabourCost },
+                    { label: 'Transport Cost (₹)', value: transportCost, setter: setTransportCost },
+                    { label: 'Other Cost (₹)', value: otherCost, setter: setOtherCost },
+                    { label: 'Wastage (%)', value: wastagePercent, setter: setWastagePercent },
+                  ].map(({ label, value, setter }) => (
+                    <div key={label}>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">{label}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0"
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                        value={value}
+                        onChange={e => setter(e.target.value)}
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-2 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by name, ID, or cost..."
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <div className="relative" ref={filterDropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-                      className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                      title="Search filter options"
-                      aria-label="Search filter options"
-                    >
-                      <Filter className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-700">{getFilterLabel()}</span>
-                      {isFilterDropdownOpen ? (
-                        <ChevronUp className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-400" />
-                      )}
-                    </button>
-                    {isFilterDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                        <div className="py-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSearchFilter('all');
-                              setIsFilterDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${searchFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'
-                              }`}
-                          >
-                            All Fields
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSearchFilter('name');
-                              setIsFilterDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${searchFilter === 'name' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'
-                              }`}
-                          >
-                            Name Only
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSearchFilter('id');
-                              setIsFilterDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${searchFilter === 'id' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'
-                              }`}
-                          >
-                            ID Only
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSearchFilter('cost');
-                              setIsFilterDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${searchFilter === 'cost' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'
-                              }`}
-                          >
-                            Cost Only
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              </div>
+
+              {/* Step 3 — Material Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-bold text-gray-700">
+                    Select Materials <span className="text-red-500">*</span>
+                  </p>
+                  {selectedItems.length > 0 && (
+                    <span className="text-xs bg-orange-100 text-orange-700 font-semibold px-2 py-0.5 rounded-full">
+                      {selectedItems.length} selected
+                    </span>
+                  )}
                 </div>
-                <div className="border border-gray-200 rounded-lg max-h-80 overflow-y-auto bg-gray-50">
+
+                {/* Info note — no quantity input */}
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3">
+                  <Lock className="h-4 w-4 text-blue-500 shrink-0" />
+                  <p className="text-xs text-blue-700 font-medium">Quantities will be calculated automatically by the system after submission.</p>
+                </div>
+
+                {/* Selected chips */}
+                {selectedItems.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                    {selectedItems.map(name => (
+                      <span key={name} className="inline-flex items-center gap-1 bg-white border border-orange-200 text-orange-800 text-xs font-semibold px-2.5 py-1.5 rounded-full shadow-sm">
+                        {name}
+                        <button type="button" onClick={() => removeMaterial(name)} className="text-orange-400 hover:text-orange-600 ml-0.5">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Search */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search materials..."
+                    className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 rounded-xl focus:border-orange-500 transition-all text-sm"
+                    value={materialSearch}
+                    onChange={e => setMaterialSearch(e.target.value)}
+                  />
+                </div>
+
+                {/* Material List */}
+                <div className="border-2 border-gray-200 rounded-xl max-h-64 overflow-y-auto bg-gray-50">
                   {isLoadingMaterials ? (
                     <div className="p-8 text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-600 mb-2" />
-                      <p className="text-sm text-gray-500">Loading materials...</p>
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-orange-500 mb-2" />
+                      <p className="text-sm text-gray-500">Loading materials…</p>
                     </div>
                   ) : filteredMaterials.length === 0 ? (
                     <div className="p-8 text-center">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Search className="h-6 w-6 text-gray-400" />
-                      </div>
-                      <p className="text-sm text-gray-600 font-medium">No materials found</p>
-                      <p className="text-xs text-gray-500 mt-1">Try adjusting your search or filter</p>
+                      <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No materials found</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-200">
-                      {filteredMaterials.map((material) => {
-                        const stockLevel = material.available > (material.minStockLimit || 0) ? 'high' : 'low';
-                        const stockColor = stockLevel === 'high' ? 'text-green-600' : 'text-orange-600';
-                        const stockBg = stockLevel === 'high' ? 'bg-green-50' : 'bg-orange-50';
-
+                    <div className="divide-y divide-gray-100">
+                      {filteredMaterials.map(m => {
+                        const isSelected = selectedItems.includes(m.name);
                         return (
                           <button
-                            key={material.id}
-                            onClick={() => handleAddMaterial(material)}
-                            className="w-full px-4 py-3.5 text-left hover:bg-white transition-all duration-150 group bg-gray-50"
-                            title={`Add ${material.name} to ingredients`}
-                            aria-label={`Add ${material.name} to ingredients`}
+                            key={m.id}
+                            type="button"
+                            onClick={() => toggleMaterial(m.name)}
+                            className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isSelected ? 'bg-orange-50' : 'hover:bg-white'}`}
                           >
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
-                                  {material.name}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">ID: {material.id}</p>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-orange-500 border-orange-500' : 'border-gray-300'}`}>
+                                {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" /></svg>}
                               </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className="text-sm font-bold text-gray-900 mb-1">
-                                  ₹{material.cost.toFixed(2)}
-                                  <span className="text-xs font-normal text-gray-500">/{material.unit}</span>
-                                </p>
-                                <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stockBg} ${stockColor}`}>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5"></span>
-                                  {material.available} {material.unit}
-                                </div>
+                              <div>
+                                <p className={`text-sm font-semibold ${isSelected ? 'text-orange-800' : 'text-gray-800'}`}>{m.name}</p>
+                                <p className="text-xs text-gray-400">Available: {m.available} {m.unit}</p>
                               </div>
                             </div>
-                            <div className="mt-2 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <p className="text-xs text-indigo-600 font-medium">Click to add →</p>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-gray-700">₹{m.cost.toFixed(2)}</p>
+                              <p className="text-xs text-gray-400">/ {m.unit}</p>
                             </div>
                           </button>
                         );
@@ -880,208 +589,254 @@ const Costing: React.FC = () => {
                   )}
                 </div>
               </div>
+            </>
+          )}
+        </div>
 
-              {/* Section C: Selected Ingredients */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900">Selected Ingredients</h3>
-                  {selectedIngredients.length > 0 && (
-                    <span className="text-sm font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">
-                      {selectedIngredients.length} {selectedIngredients.length === 1 ? 'item' : 'items'}
-                    </span>
-                  )}
-                </div>
-                {selectedIngredients.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Plus className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">No ingredients selected</p>
-                    <p className="text-xs text-gray-500">Click on items above to add them to your recipe</p>
-                  </div>
-                ) : (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                          <tr>
-                            <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Item Name
-                            </th>
-                            <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Stock Available
-                            </th>
-                            <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Unit Cost
-                            </th>
-                            <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Qty Used
-                            </th>
-                            <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Subtotal
-                            </th>
-                            <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {selectedIngredients.map((ing, index) => (
-                            <tr key={ing.itemId} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-4 text-sm">
-                                <div className="flex items-center">
-                                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                                    <span className="text-xs font-bold text-indigo-600">{index + 1}</span>
-                                  </div>
-                                  <span className="font-medium text-gray-900">{ing.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4 text-sm">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${ing.stockAvailable > (typeof ing.qtyUsed === 'string' ? parseFloat(ing.qtyUsed) || 0 : ing.qtyUsed)
-                                  ? 'bg-green-50 text-green-700'
-                                  : 'bg-red-50 text-red-700'
-                                  }`}>
-                                  {ing.stockAvailable}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4 text-sm font-medium text-gray-700">
-                                ₹{ing.unitCost.toFixed(2)}
-                              </td>
-                              <td className="px-4 py-4 text-sm">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="any"
-                                  max={ing.stockAvailable}
-                                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                                  value={ing.qtyUsed}
-                                  onChange={(e) =>
-                                    handleUpdateQuantity(ing.itemId, e.target.value)
-                                  }
-                                  aria-label={`Quantity for ${ing.name}`}
-                                  title={`Quantity for ${ing.name}`}
-                                />
-                              </td>
-                              <td className="px-4 py-4 text-sm">
-                                <span className="font-bold text-gray-900">₹{ing.subtotal.toFixed(2)}</span>
-                              </td>
-                              <td className="px-4 py-4 text-sm text-center">
-                                <button
-                                  onClick={() => handleRemoveIngredient(ing.itemId)}
-                                  className="inline-flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
-                                  title="Remove ingredient"
-                                  aria-label={`Remove ${ing.name}`}
-                                >
-                                  <X className="w-5 h-5" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="bg-gray-50">
-                          <tr>
-                            <td colSpan={4} className="px-4 py-4 text-sm font-semibold text-gray-700 text-right">
-                              Materials Subtotal:
-                            </td>
-                            <td colSpan={2} className="px-4 py-4 text-sm font-bold text-indigo-600">
-                              ₹{totalCost.toFixed(2)}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
+        {/* Drawer Footer */}
+        {!result && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+            <button onClick={onClose} className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100 transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSaving || !productName.trim() || selectedItems.length === 0}
+              className={`px-6 py-2.5 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 ${isSaving || !productName.trim() || selectedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+              {isSaving ? 'Calculating…' : 'Create & Calculate'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
-              {/* Additional Costs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Wastage Percent
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    value={wastagePercent}
-                    onChange={(e) => setWastagePercent(e.target.value)}
-                    placeholder="0.00"
-                    aria-label="Wastage Percent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Transport Cost
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    value={transportCost}
-                    onChange={(e) => setTransportCost(e.target.value)}
-                    placeholder="0.00"
-                    aria-label="Transport Cost"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Labour Cost
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    value={labourCost}
-                    onChange={(e) => setLabourCost(e.target.value)}
-                    placeholder="0.00"
-                    aria-label="Labour Cost"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Other Cost
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    value={otherCost}
-                    onChange={(e) => setOtherCost(e.target.value)}
-                    placeholder="0.00"
-                    aria-label="Other Cost"
-                  />
-                </div>
-              </div>
-            </div>
+// ─── Main Costing Page ────────────────────────────────────────────────────────
 
-            {/* Footer Actions */}
-            <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
-              <button
-                onClick={handleCloseWorkbench}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveCasting}
-                disabled={isSaving}
-                className={`px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center ${isSaving ? 'opacity-75 cursor-not-allowed' : ''
-                  }`}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Casting'
-                )}
-              </button>
-            </div>
+const Costing: React.FC = () => {
+  const location = useLocation();
+  const { user } = useAuth();
+
+  const [castings, setCastings] = useState<CastingProductResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [showCreateDrawer, setShowCreateDrawer] = useState(false);
+  const [editTarget, setEditTarget] = useState<CastingProductResponse | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [movingProductId, setMovingProductId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const fetchCastings = async () => {
+    setIsLoading(true);
+    try {
+      const products = await viewCastings();
+      setCastings(products);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch costings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCastings(); }, [location.pathname]);
+
+  // Auto-dismiss messages
+  useEffect(() => {
+    if (success || error) {
+      const t = setTimeout(() => { setSuccess(null); setError(null); }, 4000);
+      return () => clearTimeout(t);
+    }
+  }, [success, error]);
+
+  const handleMoveToProduction = async (productId: string) => {
+    setMovingProductId(productId);
+    setError(null);
+    try {
+      const res = await moveToProduction({ operation: 'MoveToProduction', product_id: productId, username: user.username });
+      if (res.message?.toLowerCase().includes('success')) {
+        setSuccess('Product moved to production successfully');
+        setCastings(prev => prev.filter(c => c.product_id !== productId));
+      } else {
+        setError('Failed to move product to production');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to move to production');
+    } finally {
+      setMovingProductId(null);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await deleteCastingProduct({
+        operation: 'DeleteCastingProduct',
+        product_id: deleteTarget.id,
+        username: user.username,
+      });
+      if (res.message?.toLowerCase().includes('deleted') || res.message?.toLowerCase().includes('success')) {
+        setSuccess(`"${deleteTarget.name}" deleted successfully`);
+        setCastings(prev => prev.filter(c => c.product_id !== deleteTarget.id));
+      } else {
+        setError(res.message || 'Failed to delete');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete costing');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleEditSuccess = (updatedProduct: CastingProductResponse) => {
+    setCastings(prev => prev.map(c => c.product_id === updatedProduct.product_id ? updatedProduct : c));
+    setEditTarget(null);
+    setSuccess('Quantities updated successfully');
+  };
+
+  const handleCreateSuccess = (newProduct: CastingProductResponse) => {
+    setCastings(prev => [newProduct, ...prev]);
+    setShowCreateDrawer(false);
+    setSuccess(`"${newProduct.product_name}" created — quantities calculated by backend`);
+  };
+
+  const filteredCastings = castings.filter(c =>
+    c.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-yellow-500 rounded-2xl shadow-xl p-6 md:p-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-white">Product Costing</h1>
+            <p className="text-orange-100 text-sm md:text-base mt-1">
+              Select materials — the system calculates required quantities automatically
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 md:gap-3">
+            <button
+              onClick={fetchCastings}
+              disabled={isLoading}
+              className={`flex items-center px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl font-medium shadow-lg hover:bg-white/30 transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowCreateDrawer(true)}
+              className="flex items-center px-5 py-2.5 bg-white text-orange-600 rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Costing
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* Global messages */}
+      {(error || success) && (
+        <div className={`flex items-start gap-3 px-4 py-3 rounded-xl border-l-4 ${success ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
+          {success ? <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" /> : <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />}
+          <p className={`text-sm font-medium ${success ? 'text-green-700' : 'text-red-700'}`}>{success || error}</p>
+        </div>
       )}
+
+      {/* Search */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by product name…"
+            className="w-full pl-10 pr-10 py-2.5 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-gray-500 mt-2">{filteredCastings.length} result{filteredCastings.length !== 1 ? 's' : ''} for "{searchQuery}"</p>
+        )}
+      </div>
+
+      {/* Grid */}
+      {isLoading ? (
+        <CostingSkeleton />
+      ) : filteredCastings.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <div className="h-16 w-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Package className="h-8 w-8 text-orange-300" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-1">
+            {searchQuery ? 'No results found' : 'No costing drafts yet'}
+          </h3>
+          <p className="text-sm text-gray-400">
+            {searchQuery ? 'Try a different search term' : 'Click "New Costing" to create your first product costing'}
+          </p>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="mt-3 text-orange-600 font-semibold text-sm hover:underline">
+              Clear search
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredCastings.map(product => (
+            <CostingCard
+              key={product.product_id}
+              product={product}
+              onMove={handleMoveToProduction}
+              onEdit={setEditTarget}
+              onDelete={(id, name) => setDeleteTarget({ id, name })}
+              isMoving={movingProductId === product.product_id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Create Drawer */}
+      {showCreateDrawer && (
+        <CreateDrawer
+          username={user.username}
+          onClose={() => setShowCreateDrawer(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <EditQtyModal
+          product={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmationDialog
+        isOpen={!!deleteTarget}
+        title="Delete Costing"
+        message={`Are you sure you want to delete the costing for "${deleteTarget?.name}"? This action cannot be undone.`}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

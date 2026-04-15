@@ -203,5 +203,58 @@ export async function deleteGrn(grnId: string): Promise<DeleteGrnResponse> {
     throw error;
   }
 }
+export async function getDailyGrnReport(date: string): Promise<any> {
+  try {
+    const response = await axiosInstance.post('/api/grn/reports/daily/', { date });
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      throw new Error(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to fetch Daily GRN report'
+      );
+    }
+    throw error;
+  }
+}
 
+export async function getWeeklyGrnReport(startDate: string, endDate: string): Promise<any> {
+  try {
+    const response = await axiosInstance.post('/api/grn/reports/weekly/', {
+      start_date: startDate,
+      end_date: endDate
+    });
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      throw new Error(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to fetch Weekly GRN report'
+      );
+    }
+    throw error;
+  }
+}
 
+export async function getMonthlyGrnReport(month: string): Promise<any> {
+  try {
+    const response = await axiosInstance.post('/api/grn/reports/monthly/', {
+      month: month
+    });
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      throw new Error(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to fetch Monthly GRN report'
+      );
+    }
+    throw error;
+  }
+}

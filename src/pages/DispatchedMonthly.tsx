@@ -45,7 +45,7 @@ const DispatchedMonthly = () => {
     }
     fetchRecords();
   };
-
+          
   const fetchRecords = async () => {
     setIsLoading(true);
     setError(null);

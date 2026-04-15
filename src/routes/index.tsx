@@ -23,6 +23,12 @@ import SignUp from '../pages/SignUp';
 import DispatchedDaily from '../pages/DispatchedDaily';
 import DispatchedWeekly from '../pages/DispatchedWeekly';
 import DispatchedMonthly from '../pages/DispatchedMonthly';
+import DispatchedDailyGrouped from '../pages/DispatchedDailyGrouped';
+import DispatchedWeeklyGrouped from '../pages/DispatchedWeeklyGrouped';
+import DispatchedMonthlyGrouped from '../pages/DispatchedMonthlyGrouped';
+import GrnDaily from '../pages/GrnDaily';
+import GrnWeekly from '../pages/GrnWeekly';
+import GrnMonthly from '../pages/GrnMonthly';
 import DailyInward from '../pages/reports/DailyInward';
 import WeeklyInward from '../pages/reports/WeeklyInward';
 import MonthlyInward from '../pages/reports/MonthlyInward';
@@ -76,9 +82,27 @@ export const router = createBrowserRouter([
         path: 'grn',
         element: (
           <PermissionGuard permission="grn">
-            <GRN />
+            <Outlet />
           </PermissionGuard>
         ),
+        children: [
+          {
+            index: true,
+            element: <GRN />,
+          },
+          {
+            path: 'daily',
+            element: <GrnDaily />,
+          },
+          {
+            path: 'weekly',
+            element: <GrnWeekly />,
+          },
+          {
+            path: 'monthly',
+            element: <GrnMonthly />,
+          },
+        ],
       },
       {
         path: 'costing',
@@ -123,6 +147,18 @@ export const router = createBrowserRouter([
           {
             path: 'monthly',
             element: <DispatchedMonthly />,
+          },
+          {
+            path: 'daily-grouped',
+            element: <DispatchedDailyGrouped />,
+          },
+          {
+            path: 'weekly-grouped',
+            element: <DispatchedWeeklyGrouped />,
+          },
+          {
+            path: 'monthly-grouped',
+            element: <DispatchedMonthlyGrouped />,
           },
         ],
       },

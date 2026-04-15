@@ -1,26 +1,30 @@
 import { AxiosError } from 'axios';
 import { axiosInstance } from './axiosInstance';
 
+// ─── Create ─────────────────────────────────────────────────────────────────
 
 export interface CreateCastingPayload {
-  operation: string;
   product_name: string;
-  stock_needed: { [item_id: string]: number };
+  selected_items: string[]; // array of material names (not IDs)
   username: string;
-  wastage_percent: number;
-  transport_cost: number;
   labour_cost: number;
+  transport_cost: number;
   other_cost: number;
+  wastage_percent: number;
 }
 
 export interface CreateCastingResponse {
   message: string;
   product_id: string;
+  product_name: string;
+  stock_needed: { [material_name: string]: string };
+  max_produce: number;
+  production_cost_breakdown: { [material_name: string]: string };
   production_cost_total: number;
   wastage_percent: number;
   wastage_amount: number;
-  transport_cost: number;
   labour_cost: number;
+  transport_cost: number;
   other_cost: number;
   total_cost: number;
 }
@@ -44,14 +48,20 @@ export async function createCastingProduct(
   }
 }
 
+// ─── View / List ─────────────────────────────────────────────────────────────
+
 export interface CastingProductResponse {
   product_id: string;
   product_name: string;
-  stock_needed: { [item_id: string]: number };
+  /** Keys are material names, values are quantity strings */
+  stock_needed: { [material_name: string]: string };
+  max_produce?: number;
+  production_cost_breakdown?: { [material_name: string]: string };
+  production_cost_total?: number;
   wastage_percent: number;
   wastage_amount: number;
-  transport_cost: number;
   labour_cost: number;
+  transport_cost: number;
   other_cost: number;
   total_cost: number;
   created_at: string;
@@ -60,47 +70,23 @@ export interface CastingProductResponse {
 export interface ViewCastingsResponse {
   products?: CastingProductResponse[];
   items?: CastingProductResponse[];
-  data?: {
-    products?: CastingProductResponse[];
-    items?: CastingProductResponse[];
-  } | CastingProductResponse[];
+  data?: { products?: CastingProductResponse[]; items?: CastingProductResponse[] } | CastingProductResponse[];
   results?: CastingProductResponse[];
 }
 
-const extractCastingProducts = (payload: ViewCastingsResponse | CastingProductResponse[] | undefined): CastingProductResponse[] => {
+const extractCastingProducts = (
+  payload: ViewCastingsResponse | CastingProductResponse[] | undefined
+): CastingProductResponse[] => {
   if (!payload) return [];
-
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (Array.isArray(payload.products)) {
-    return payload.products;
-  }
-
-  if (Array.isArray(payload.items)) {
-    return payload.items;
-  }
-
-  if (Array.isArray(payload.results)) {
-    return payload.results;
-  }
-
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.products)) return payload.products;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.results)) return payload.results;
   if (payload.data) {
-    if (Array.isArray(payload.data)) {
-      return payload.data;
-    }
-
-    if (Array.isArray(payload.data.products)) {
-      return payload.data.products;
-    }
-
-    if (Array.isArray(payload.data.items)) {
-      return payload.data.items;
-    }
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray((payload.data as any).products)) return (payload.data as any).products;
+    if (Array.isArray((payload.data as any).items)) return (payload.data as any).items;
   }
-
-  console.warn('Unable to determine casting payload structure', payload);
   return [];
 };
 
@@ -120,6 +106,55 @@ export async function viewCastings(): Promise<CastingProductResponse[]> {
     throw error;
   }
 }
+
+// ─── Update (quantity-only edit) ─────────────────────────────────────────────
+
+export interface UpdateCastingPayload {
+  product_id: string;
+  /** Keys are material names, values are updated quantities (numbers) */
+  stock_needed: { [material_name: string]: number };
+}
+
+export interface UpdateCastingResponse {
+  message: string;
+  product_id: string;
+  product_name: string;
+  /** Returned quantities are numbers after an edit */
+  stock_needed: { [material_name: string]: number };
+  max_produce: number;
+  production_cost_breakdown: { [material_name: string]: number };
+  production_cost_total: number;
+  wastage_percent: number;
+  wastage_amount: number;
+  labour_cost: number;
+  transport_cost: number;
+  other_cost: number;
+  total_cost: number;
+}
+
+export async function updateCastingQuantities(
+  payload: UpdateCastingPayload
+): Promise<UpdateCastingResponse> {
+  try {
+    const response = await axiosInstance.post<UpdateCastingResponse>(
+      '/api/casting/edit-raw-materials/',
+      payload
+    );
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      throw new Error(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to update casting quantities'
+      );
+    }
+    throw error;
+  }
+}
+
+// ─── Move to Production ───────────────────────────────────────────────────────
 
 export interface MoveToProductionPayload {
   operation: string;
@@ -150,6 +185,8 @@ export async function moveToProduction(
   }
 }
 
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
 export interface DeleteCastingPayload {
   operation: string;
   product_id: string;
@@ -178,4 +215,3 @@ export async function deleteCastingProduct(
     throw error;
   }
 }
-
