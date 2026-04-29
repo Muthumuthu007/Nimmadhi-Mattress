@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Download, Calendar, Loader2, AlertCircle, RefreshCw,
-  ArrowLeft, Package, Trash2
+  ArrowLeft, Package, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { makeApiRequest } from '../utils/api';
 import { format } from 'date-fns';
@@ -20,6 +20,7 @@ const DispatchedDaily = () => {
   const [error, setError] = useState<string | null>(null);
   const [records, setRecords] = useState<any[]>([]);
   const [summary, setSummary] = useState<any[]>([]); // <-- new state for summary
+  const [showSummary, setShowSummary] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'UNDONE'>('ALL');
   const [deleteTarget, setDeleteTarget] = useState<{ push_id: string, product_name: string } | null>(null);
@@ -64,8 +65,8 @@ const DispatchedDaily = () => {
       const rows = records.map(r => [
         r.product_name,
         r.quantity_produced,
-        r.total_cost_per_unit,
-        r.total_cost,
+        r.production_cost_per_unit,
+        r.total_production_cost,
         r.status,
         r.username,
         r.timestamp
@@ -216,8 +217,8 @@ const DispatchedDaily = () => {
             >
               <option value="product_name">Product Name</option>
               <option value="quantity_produced">Quantity Produced</option>
-              <option value="total_cost_per_unit">Cost per Unit</option>
-              <option value="total_cost">Total Cost</option>
+              <option value="production_cost_per_unit">Cost per Unit</option>
+              <option value="total_production_cost">Total Cost</option>
               <option value="status">Status</option>
               <option value="timestamp">Date</option>
             </select>
@@ -268,31 +269,42 @@ const DispatchedDaily = () => {
         </div>
       )}
 
-      {/* Summary Cards */}
+      {/* Summary Cards — collapsible */}
       {summary.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-            <h2 className="text-xl font-bold text-white">Dispatch Summary</h2>
-            <p className="text-blue-100 text-sm mt-1">Total dispatched per product</p>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {summary.map((s) => (
-                <div key={s.product_id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-xs uppercase tracking-wider text-blue-700 font-semibold mb-1">Product</p>
-                      <p className="text-base font-bold text-gray-900">{s.product_name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs uppercase tracking-wider text-blue-700 font-semibold mb-1">Quantity</p>
-                      <p className="text-2xl font-bold text-blue-600">{s.total_quantity}</p>
+          <button
+            type="button"
+            onClick={() => setShowSummary(v => !v)}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between hover:from-blue-700 hover:to-blue-800 transition-all"
+          >
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-white">Dispatch Summary</h2>
+              <p className="text-blue-100 text-sm mt-1">Total dispatched per product · {summary.length} product{summary.length !== 1 ? 's' : ''}</p>
+            </div>
+            {showSummary
+              ? <ChevronUp className="h-6 w-6 text-white shrink-0" />
+              : <ChevronDown className="h-6 w-6 text-white shrink-0" />}
+          </button>
+          {showSummary && (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {summary.map((s) => (
+                  <div key={s.product_id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs uppercase tracking-wider text-blue-700 font-semibold mb-1">Product</p>
+                        <p className="text-base font-bold text-gray-900">{s.product_name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wider text-blue-700 font-semibold mb-1">Quantity</p>
+                        <p className="text-2xl font-bold text-blue-600">{s.total_quantity}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -332,8 +344,8 @@ const DispatchedDaily = () => {
                 <div>
                   <div className="font-semibold mb-2 text-gray-700 dark:text-gray-200">Production Details</div>
                   <div className="text-sm text-gray-700 dark:text-gray-300">Quantity Produced: <span className="font-medium">{record.quantity_produced} units</span></div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300">Cost per Unit: <span className="font-medium">₹{record.total_cost_per_unit}</span></div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300">Total Cost: <span className="font-medium">₹{record.total_cost}</span></div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">Cost per Unit: <span className="font-medium">₹{record.production_cost_per_unit}</span></div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">Total Cost: <span className="font-medium">₹{record.total_production_cost}</span></div>
                 </div>
                 <div>
                   <div className="font-semibold mb-2 text-gray-700 dark:text-gray-200">Material Deductions</div>
