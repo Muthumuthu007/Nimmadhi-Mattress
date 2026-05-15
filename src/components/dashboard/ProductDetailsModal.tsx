@@ -105,6 +105,11 @@ const ProductDetailsModalComponent = ({ product, onClose }: Props) => {
                   </div>
 
                   <div className="p-3 bg-white dark:bg-gray-800 shadow-sm rounded-lg flex justify-between">
+                    <span className="text-gray-700 dark:text-gray-300">Transport Cost</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">₹{formatCurrency(product.transportCost)}</span>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-gray-800 shadow-sm rounded-lg flex justify-between">
                     <span className="text-gray-700 dark:text-gray-300">Total Cost</span>
                     <span className="font-bold text-green-700 dark:text-green-400">₹{formatCurrency(product.totalCost)}</span>
                   </div>
