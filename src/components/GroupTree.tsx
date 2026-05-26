@@ -85,42 +85,35 @@ const GroupTree: React.FC = () => {
     try {
       const data = await fetchAllStocks(user.username);
 
-      // Parse the data to convert string values to numbers and map gst_percentage to gst
-      // Type assertion needed as legacy API response might differ slightly from strict InventoryGroup
-      const parsedData = data.map((group: any) => ({
-        ...group,
-        items: group.items?.map((item: any) => ({
-          ...item,
-          quantity: Number(item.quantity),
-          defective: Number(item.defective),
-          cost_per_unit: Number(item.cost_per_unit),
-          stock_limit: Number(item.stock_limit),
-          total_quantity: Number(item.total_quantity),
-          gst: Number(item.gst_percentage || item.gst || 0),
-          gst_amount: Number(item.gst_amount || 0),
-          total_cost: Number(item.total_cost || 0),
-          total_cost_without_gst: Number(item.total_cost_without_gst || 0),
-          matches: undefined
-        })) || [],
-        subgroups: group.subgroups?.map((subgroup: any) => ({
-          ...subgroup,
-          items: subgroup.items?.map((item: any) => ({
-            ...item,
-            quantity: Number(item.quantity),
-            defective: Number(item.defective),
-            cost_per_unit: Number(item.cost_per_unit),
-            stock_limit: Number(item.stock_limit),
-            total_quantity: Number(item.total_quantity),
-            gst: Number(item.gst_percentage || item.gst || 0),
-            gst_amount: Number(item.gst_amount || 0),
-            total_cost: Number(item.total_cost || 0),
-            total_cost_without_gst: Number(item.total_cost_without_gst || 0),
-            matches: undefined
-          })) || [],
-          matches: undefined
-        })) || [],
+      // Helper to parse a single item, correctly mapping gst_percentage -> gst
+      // Uses != null (not ||) so that "0" / 0 values are preserved correctly
+      const parseItem = (item: any) => ({
+        ...item,
+        quantity: Number(item.quantity),
+        defective: Number(item.defective),
+        cost_per_unit: Number(item.cost_per_unit),
+        stock_limit: Number(item.stock_limit),
+        total_quantity: Number(item.total_quantity),
+        gst: item.gst_percentage != null && item.gst_percentage !== ''
+          ? Number(item.gst_percentage)
+          : item.gst != null && item.gst !== ''
+            ? Number(item.gst)
+            : 0,
+        gst_amount: Number(item.gst_amount ?? 0),
+        total_cost: Number(item.total_cost ?? 0),
+        total_cost_without_gst: Number(item.total_cost_without_gst ?? 0),
         matches: undefined
-      }));
+      });
+
+      // Recursive helper to parse a group (handles unlimited nesting depth)
+      const parseGroup = (group: any): any => ({
+        ...group,
+        items: group.items?.map(parseItem) || [],
+        subgroups: group.subgroups?.map(parseGroup) || [],
+        matches: undefined
+      });
+
+      const parsedData = data.map(parseGroup);
 
       setTree(parsedData);
     } catch (e) {
@@ -727,7 +720,7 @@ const GroupTree: React.FC = () => {
                               placeholder="GST"
                             />
                           ) : (
-                            `${item.gst || 0}%`
+                            `${item.gst ?? 0}%`
                           )}
                         </td>
                         {/* GST Amount */}
