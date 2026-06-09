@@ -62,7 +62,7 @@ export const productionApi = {
     },
 
     getDailyDispatch: (date: string) => {
-        return apiClient.post('/api/reports/production/daily/', {
+        return apiClient.post('/api/reports/production/list-of-undo/', {
             date
         });
     },
