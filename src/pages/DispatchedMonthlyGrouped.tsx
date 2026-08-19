@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import * as XLSX from 'xlsx';
+import { formatApiDate } from '../utils/dateUtils';
 
 interface Product {
   product_id: string;
@@ -35,7 +36,7 @@ interface MonthlyGroupedResponse {
 
 const DispatchedMonthlyGrouped = () => {
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>(formatApiDate(new Date(), 'yyyy-MM'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);

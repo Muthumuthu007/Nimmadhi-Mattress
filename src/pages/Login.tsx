@@ -58,8 +58,10 @@ const Login = () => {
         login(response.username);
 
         // Check if admin based on the newly stored permissions
-        // Redirect to the first allowed route based on permissions
-        const redirectPath = getFirstAllowedRoute(response.permissions || [], authService.isAdmin());
+        // Redirect to the first allowed route based on permissions. If none
+        // match, send them to /unauthorized instead of a route that could
+        // guard-reject them right back here.
+        const redirectPath = getFirstAllowedRoute(response.permissions || [], authService.isAdmin()) ?? '/unauthorized';
         navigate(redirectPath);
       } else {
         setErrors(prev => ({

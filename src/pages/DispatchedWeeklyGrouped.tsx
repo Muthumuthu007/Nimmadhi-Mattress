@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import * as XLSX from 'xlsx';
+import { formatApiDate } from '../utils/dateUtils';
 
 interface Product {
   product_id: string;
@@ -36,7 +37,7 @@ interface WeeklyGroupedResponse {
 const DispatchedWeeklyGrouped = () => {
   const navigate = useNavigate();
   const [fromDate, setFromDate] = useState<string>(format(subDays(new Date(), 6), 'yyyy-MM-dd'));
-  const [toDate, setToDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [toDate, setToDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);

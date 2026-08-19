@@ -44,4 +44,15 @@ export interface Product {
   groupChain: Record<string, string>;
   transportCost?: number;
   otherCost?: number;
-} 
+  /** Product Group this product belongs to, as returned by grouped_products */
+  groupId?: string | null;
+  groupName?: string | null;
+}
+
+/** A single section from the API's grouped_products response */
+export interface ProductGroupSection {
+  groupId: string | null;
+  groupName: string;
+  productCount: number;
+  products: Product[];
+}

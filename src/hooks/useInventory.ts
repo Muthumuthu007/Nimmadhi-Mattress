@@ -15,9 +15,22 @@ export const useInventory = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetchAllStocks(user.username);
+      // fetchAllStocks returns a nested group tree —
+      // [{ group_id, group_name, items: [...], subgroups: [...] }, ...] —
+      // not a flat list of materials. Recursively flatten every group's
+      // `items` (at any nesting depth) before mapping, the same approach
+      // GroupTree.tsx already uses for this exact response shape.
+      const groups: any[] = await fetchAllStocks(user.username);
 
-      const materials: RawMaterial[] = response.map((item: any) => ({
+      const flattenItems = (nodes: any[]): any[] =>
+        nodes.flatMap(node => [
+          ...(Array.isArray(node.items) ? node.items : []),
+          ...(Array.isArray(node.subgroups) ? flattenItems(node.subgroups) : []),
+        ]);
+
+      const flatItems = flattenItems(groups);
+
+      const materials: RawMaterial[] = flatItems.map((item: any) => ({
         id: item.item_id,
         name: item.name,
         quantity: Number(item.quantity),

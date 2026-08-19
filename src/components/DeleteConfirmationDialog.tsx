@@ -8,6 +8,18 @@ interface DeleteConfirmationDialogProps {
   isDeleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /**
+   * Extra warning content shown below `message`, e.g. explaining a business
+   * rule that's currently blocking deletion. Optional — existing call sites
+   * that don't pass it are unaffected.
+   */
+  warning?: React.ReactNode;
+  /**
+   * When true, disables the Confirm/Delete button regardless of `isDeleting`.
+   * Used to block confirmation until some precondition is met (e.g. a group
+   * must have zero products before it can be deleted). Defaults to false.
+   */
+  confirmDisabled?: boolean;
 }
 
 const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
@@ -16,7 +28,9 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
   message,
   isDeleting,
   onConfirm,
-  onCancel
+  onCancel,
+  warning,
+  confirmDisabled = false
 }) => {
   if (!isOpen) return null;
 
@@ -31,7 +45,14 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
           </div>
 
-          <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{message}</p>
+
+          {warning && (
+            <div className="mb-6 flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800 dark:text-amber-300">{warning}</div>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3">
             <button
@@ -43,7 +64,8 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
             </button>
             <button
               onClick={onConfirm}
-              disabled={isDeleting}
+              disabled={isDeleting || confirmDisabled}
+              title={confirmDisabled ? 'This action is currently unavailable' : undefined}
               className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isDeleting ? (

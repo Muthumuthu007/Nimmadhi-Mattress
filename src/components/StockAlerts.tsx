@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Download, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+import { formatApiDate } from '../utils/dateUtils';
 
 interface StockAlertsProps {
   alerts: any[];
@@ -48,7 +48,7 @@ export const StockAlerts: React.FC<StockAlertsProps> = ({ alerts }) => {
       XLSX.utils.book_append_sheet(wb, ws, 'Low Stock Alerts');
 
       // Generate filename with current date
-      const fileName = `low-stock-alerts-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      const fileName = `low-stock-alerts-${formatApiDate(new Date(), 'yyyy-MM-dd')}.xlsx`;
 
       // Download file
       XLSX.writeFile(wb, fileName);

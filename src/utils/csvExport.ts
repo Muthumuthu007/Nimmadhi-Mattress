@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { formatApiDate } from './dateUtils';
 
 export const downloadCSV = (data: string, filename: string) => {
   const blob = new Blob(['\ufeff' + data], { type: 'text/csv;charset=utf-8;' });
@@ -18,7 +18,7 @@ export const generateDailyReportCSV = (reportData: any) => {
   if (!reportData) return '';
 
   let csv = 'DAILY REPORT\n';
-  csv += `Report Date: ${format(new Date(reportData.report_date), 'MMMM d, yyyy')}\n\n`;
+  csv += `Report Date: ${formatApiDate(reportData.report_date, 'MMMM d, yyyy')}\n\n`;
 
   // Stock Summary Section
   csv += '1. STOCK SUMMARY\n';
@@ -38,7 +38,7 @@ export const generateDailyReportCSV = (reportData: any) => {
       csv += `${transaction.transaction_id},`;
       csv += `${details.item_id},`;
       csv += `${details.username},`;
-      csv += `${format(new Date(transaction.timestamp), 'HH:mm:ss')},`;
+      csv += `${formatApiDate(transaction.timestamp, 'HH:mm:ss')},`;
       csv += `"${formatTransactionDetailsForCSV(transaction.details, transaction.operation_type)}",`;
       csv += `${transaction.operation_type}\n`;
     });
@@ -51,7 +51,7 @@ export const generateWeeklyReportCSV = (reportData: any) => {
   if (!reportData) return '';
 
   let csv = 'WEEKLY REPORT\n';
-  csv += `Report Period: ${format(new Date(reportData.report_period.start_date), 'MMMM d, yyyy')} to ${format(new Date(reportData.report_period.end_date), 'MMMM d, yyyy')}\n\n`;
+  csv += `Report Period: ${formatApiDate(reportData.report_period.start_date, 'MMMM d, yyyy')} to ${formatApiDate(reportData.report_period.end_date, 'MMMM d, yyyy')}\n\n`;
 
   // Overall Summary Section
   csv += '1. OVERALL SUMMARY\n';
@@ -67,7 +67,7 @@ export const generateWeeklyReportCSV = (reportData: any) => {
   Object.entries(reportData.daily_report).sort().forEach(([date, data]: [string, any]) => {
     if (!data.stock_summary) return;
     
-    const formattedDate = format(new Date(date), 'MMM dd, yyyy');
+    const formattedDate = formatApiDate(date, 'MMM dd, yyyy');
     csv += `${formattedDate},${data.stock_summary.opening_stock_qty},${data.stock_summary.opening_stock_amount},`;
     csv += `${data.stock_summary.consumption_qty},${data.stock_summary.consumption_amount},`;
     csv += `${data.stock_summary.closing_stock_qty},${data.stock_summary.closing_stock_amount}\n`;
@@ -79,7 +79,7 @@ export const generateWeeklyReportCSV = (reportData: any) => {
   Object.entries(reportData.daily_report).sort().forEach(([date, data]: [string, any]) => {
     if (!data.transactions || data.transactions.length === 0) return;
     
-    const formattedDate = format(new Date(date), 'MMM dd, yyyy');
+    const formattedDate = formatApiDate(date, 'MMM dd, yyyy');
     csv += `\n${formattedDate}\n`;
     csv += 'Transaction ID,Operation Type,Item ID,Username,Timestamp,Details\n';
 
@@ -88,7 +88,7 @@ export const generateWeeklyReportCSV = (reportData: any) => {
       csv += `${transaction.operation_type},`;
       csv += `${transaction.details.item_id},`;
       csv += `${transaction.details.username},`;
-      csv += `${format(new Date(transaction.timestamp), 'HH:mm:ss')},`;
+      csv += `${formatApiDate(transaction.timestamp, 'HH:mm:ss')},`;
       csv += `"${formatTransactionDetailsForCSV(transaction.details, transaction.operation_type)}"\n`;
     });
   });
@@ -100,7 +100,7 @@ export const generateMonthlyReportCSV = (reportData: any) => {
   if (!reportData) return '';
 
   let csv = 'MONTHLY REPORT\n';
-  csv += `Report Period: ${format(new Date(reportData.report_period.start_date), 'MMMM yyyy')}\n\n`;
+  csv += `Report Period: ${formatApiDate(reportData.report_period.start_date, 'MMMM yyyy')}\n\n`;
 
   // Overall Summary Section
   csv += '1. OVERALL SUMMARY\n';
@@ -116,7 +116,7 @@ export const generateMonthlyReportCSV = (reportData: any) => {
   Object.entries(reportData.daily_report).sort().forEach(([date, data]: [string, any]) => {
     if (!data.stock_summary) return;
     
-    const formattedDate = format(new Date(date), 'MMM dd, yyyy');
+    const formattedDate = formatApiDate(date, 'MMM dd, yyyy');
     csv += `${formattedDate},${data.stock_summary.opening_stock_qty},${data.stock_summary.opening_stock_amount},`;
     csv += `${data.stock_summary.consumption_qty},${data.stock_summary.consumption_amount},`;
     csv += `${data.stock_summary.closing_stock_qty},${data.stock_summary.closing_stock_amount}\n`;
@@ -128,7 +128,7 @@ export const generateMonthlyReportCSV = (reportData: any) => {
   Object.entries(reportData.daily_report).sort().forEach(([date, data]: [string, any]) => {
     if (!data.transactions || data.transactions.length === 0) return;
     
-    const formattedDate = format(new Date(date), 'MMM dd, yyyy');
+    const formattedDate = formatApiDate(date, 'MMM dd, yyyy');
     csv += `\n${formattedDate}\n`;
     csv += 'Transaction ID,Operation Type,Item ID,Username,Timestamp,Details\n';
 
@@ -137,7 +137,7 @@ export const generateMonthlyReportCSV = (reportData: any) => {
       csv += `${transaction.operation_type},`;
       csv += `${transaction.details.item_id},`;
       csv += `${transaction.details.username},`;
-      csv += `${format(new Date(transaction.timestamp), 'HH:mm:ss')},`;
+      csv += `${formatApiDate(transaction.timestamp, 'HH:mm:ss')},`;
       csv += `"${formatTransactionDetailsForCSV(transaction.details, transaction.operation_type)}"\n`;
     });
   });

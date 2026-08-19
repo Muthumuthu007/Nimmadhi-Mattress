@@ -6,18 +6,21 @@ import { AuthProvider } from './contexts/AuthContext';
 import { PermissionProvider } from './contexts/PermissionContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { router } from './routes';
+import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <PermissionProvider>
-          <ProductProvider>
-            <RouterProvider router={router} />
-          </ProductProvider>
-        </PermissionProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <PermissionProvider>
+            <ProductProvider>
+              <RouterProvider router={router} />
+            </ProductProvider>
+          </PermissionProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </StrictMode>
 );

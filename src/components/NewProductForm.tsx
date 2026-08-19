@@ -4,6 +4,7 @@ import { RawMaterial } from '../types';
 import { AlertCircle, CheckCircle, Search, ChevronDown, ChevronUp, Maximize2, Minimize2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { axiosInstance } from '../utils/axiosInstance';
+import { productGroupApi, ProductGroup } from '../utils/productionApi';
 
 // Define Product interface since it's not exported from types
 interface Product {
@@ -50,6 +51,29 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
   const [availableMaterials, setAvailableMaterials] = useState<RawMaterial[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
   const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Production group — required by POST /api/production/create/
+  const [availableGroups, setAvailableGroups] = useState<ProductGroup[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      setIsLoadingGroups(true);
+      try {
+        const response = await productGroupApi.getGroups();
+        const data = response.data;
+        const groupsArray = Array.isArray(data) ? data : (data?.groups || []);
+        setAvailableGroups(groupsArray);
+      } catch {
+        setGroupError('Failed to load production groups');
+      } finally {
+        setIsLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+  }, []);
 
   // Fetch available materials from API
   const fetchAvailableMaterials = async () => {
@@ -202,6 +226,12 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
     setSuccess(null);
 
     try {
+      // group_id is required by the create endpoint
+      if (!selectedGroupId) {
+        setError('Please select a production group.');
+        return;
+      }
+
       const stockNeeded: { [key: string]: string } = {};
       product.materials.forEach(({ materialName, quantity }) => {
         if (materialName && quantity) {
@@ -222,8 +252,9 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
 
       const payload = {
         product_name: product.name,
-        stock_needed: stockNeeded,
         username: user.username,
+        group_id: selectedGroupId,
+        stock_needed: stockNeeded,
         wastage_percent: parseFloat(product.wastage_percent) || 0,
         transport_cost: parseFloat(product.transport_cost) || 0,
         labour_cost: parseFloat(product.labour_cost) || 0,
@@ -233,7 +264,14 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
       const response = await axiosInstance.post('/api/production/create/', payload);
       const responseData = response.data;
 
-      if (responseData?.message === "Product created successfully") {
+      // Treat the response as successful when the API returns a product_id, or
+      // when its message reports success. Matching on product_id rather than an
+      // exact message string means a reworded backend message can't make a
+      // successful create look like a failure.
+      const isCreated = Boolean(responseData?.product_id) ||
+        String(responseData?.message ?? '').toLowerCase().includes('success');
+
+      if (isCreated) {
         const newProduct: Product = {
           id: responseData.product_id,
           name: responseData.product_name,
@@ -251,7 +289,19 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         };
 
         onAddProduct(newProduct);
-        setSuccess(`Product '${product.name}' created successfully!`);
+
+        // Prefer the values the API echoed back over local form state, and
+        // name the group the product landed in so the user can confirm it.
+        const createdName = responseData.product_name || product.name;
+        const createdGroupName = availableGroups.find(
+          g => g.group_id === (responseData.group_id ?? selectedGroupId)
+        )?.name;
+
+        setSuccess(
+          createdGroupName
+            ? `Product "${createdName}" created successfully in group "${createdGroupName}".`
+            : `Product "${createdName}" created successfully.`
+        );
         setProduct({
           name: '',
           materials: [],
@@ -260,6 +310,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
           labour_cost: '',
           other_cost: ''
         });
+        setSelectedGroupId('');
 
         setTimeout(() => {
           onClose();
@@ -333,6 +384,35 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
                 value={product.name}
                 onChange={e => setProduct(prev => ({ ...prev, name: e.target.value }))}
               />
+            </div>
+
+            <div>
+              <label htmlFor="product-group" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Production Group <span className="text-red-500">*</span>
+              </label>
+              {groupError && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0" />
+                  {groupError}
+                </p>
+              )}
+              <select
+                id="product-group"
+                required
+                disabled={isLoadingGroups}
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                value={selectedGroupId}
+                onChange={e => setSelectedGroupId(e.target.value)}
+              >
+                <option value="">
+                  {isLoadingGroups ? 'Loading groups…' : 'Select a group…'}
+                </option>
+                {availableGroups.map(group => (
+                  <option key={group.group_id} value={group.group_id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -512,8 +592,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
-                className={`px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center ${isLoading ? 'opacity-75 cursor-not-allowed' : ''
+                disabled={isLoading || !selectedGroupId}
+                className={`px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center ${isLoading || !selectedGroupId ? 'opacity-75 cursor-not-allowed' : ''
                   }`}
               >
                 {isLoading ? (

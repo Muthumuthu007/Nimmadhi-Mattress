@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { markOpeningStockSaved, markClosingStockSaved } from '../utils/dailyStockStorage';
 
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { formatApiDate } from '../utils/dateUtils';
 
 const Inventory = () => {
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -204,7 +204,7 @@ const Inventory = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
       // Download file
-      XLSX.writeFile(wb, `full-inventory-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      XLSX.writeFile(wb, `full-inventory-${formatApiDate(new Date(), 'yyyy-MM-dd')}.xlsx`);
     } catch (error) {
       // Optionally show a user-friendly error message
       console.error('Error downloading inventory:', error);

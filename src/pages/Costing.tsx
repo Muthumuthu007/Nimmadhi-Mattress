@@ -14,6 +14,8 @@ import {
   updateCastingQuantities,
 } from '../utils/castingApi';
 import { apiClient } from '../utils/api';
+import { productGroupApi, ProductGroup } from '../utils/productionApi';
+import { formatApiDate } from '../utils/dateUtils';
 import { RawMaterial } from '../types';
 import { CostingSkeleton } from '../components/skeletons/CostingSkeleton';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
@@ -55,7 +57,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
           <div>
             <h3 className="text-lg font-bold text-white leading-tight">{product.product_name}</h3>
             <p className="text-orange-100 text-xs mt-0.5">
-              Created: {new Date(product.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              Created: {formatApiDate(product.created_at, 'd MMM yyyy')}
             </p>
           </div>
           <span className="bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full">Draft</span>
@@ -177,6 +179,35 @@ const EditQtyModal: React.FC<EditQtyModalProps> = ({ product, onClose, onSuccess
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Group state — decoupled from material quantities so editing/moving a group
+  // never touches material or costing logic below.
+  const [availableGroups, setAvailableGroups] = useState<ProductGroup[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState(product.group_id ?? '');
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      setIsLoadingGroups(true);
+      try {
+        const response = await productGroupApi.getGroups();
+        const data = response.data;
+        const groupsArray = Array.isArray(data) ? data : (data?.groups || []);
+        setAvailableGroups(groupsArray);
+      } catch {
+        setGroupError('Failed to load product groups');
+      } finally {
+        setIsLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+  }, []);
+
+  const currentGroupName =
+    availableGroups.find(g => g.group_id === product.group_id)?.name ??
+    product.group_name ??
+    null;
+
   const handleSave = async () => {
     setIsSaving(true);
     setError(null);
@@ -199,7 +230,7 @@ const EditQtyModal: React.FC<EditQtyModalProps> = ({ product, onClose, onSuccess
         updatedStockNeeded[name] = String(qty);
       });
 
-      const updatedProduct: CastingProductResponse = {
+      let updatedProduct: CastingProductResponse = {
         ...product,
         stock_needed: updatedStockNeeded,
         max_produce: response.max_produce,
@@ -214,6 +245,18 @@ const EditQtyModal: React.FC<EditQtyModalProps> = ({ product, onClose, onSuccess
         other_cost: response.other_cost,
         total_cost: response.total_cost,
       };
+
+      // If the group was changed, move the product via the dedicated
+      // group endpoint — kept separate from the quantities/costing update.
+      if (selectedGroupId && selectedGroupId !== (product.group_id ?? '')) {
+        const moveResponse = await productGroupApi.moveProduct(product.product_id, selectedGroupId);
+        const movedGroupId = moveResponse.data?.group_id ?? selectedGroupId;
+        updatedProduct = {
+          ...updatedProduct,
+          group_id: movedGroupId,
+          group_name: availableGroups.find(g => g.group_id === movedGroupId)?.name ?? updatedProduct.group_name,
+        };
+      }
 
       onSuccess(updatedProduct);
     } catch (err: any) {
@@ -254,6 +297,38 @@ const EditQtyModal: React.FC<EditQtyModalProps> = ({ product, onClose, onSuccess
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
+
+          {/* Group — current group display + change selector */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Group</label>
+            {groupError && (
+              <div className="flex items-start gap-2 bg-red-50 border-l-4 border-red-500 rounded-lg px-3 py-2 mb-2">
+                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-red-700">{groupError}</p>
+              </div>
+            )}
+            {currentGroupName && !isLoadingGroups && (
+              <p className="text-xs text-gray-500 mb-1.5">
+                Current group: <span className="font-semibold text-gray-700">{currentGroupName}</span>
+              </p>
+            )}
+            <select
+              className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              disabled={isLoadingGroups}
+              aria-label="Change product group"
+            >
+              <option value="">
+                {isLoadingGroups ? 'Loading groups…' : 'No group'}
+              </option>
+              {availableGroups.map(group => (
+                <option key={group.group_id} value={group.group_id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
             {Object.entries(quantities).map(([name, qty]) => (
@@ -312,6 +387,11 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]); // material names
 
+  const [availableGroups, setAvailableGroups] = useState<ProductGroup[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [groupError, setGroupError] = useState<string | null>(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any | null>(null); // holds the create response to show calculated qtys
@@ -347,6 +427,24 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
     fetchMaterials();
   }, []);
 
+  // Fetch product groups on mount
+  useEffect(() => {
+    const fetchGroups = async () => {
+      setIsLoadingGroups(true);
+      try {
+        const response = await productGroupApi.getGroups();
+        const data = response.data;
+        const groupsArray = Array.isArray(data) ? data : (data?.groups || []);
+        setAvailableGroups(groupsArray);
+      } catch {
+        setGroupError('Failed to load product groups');
+      } finally {
+        setIsLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+  }, []);
+
   const filteredMaterials = availableMaterials.filter(m =>
     m.name.toLowerCase().includes(materialSearch.toLowerCase())
   );
@@ -363,6 +461,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
 
   const handleSubmit = async () => {
     if (!productName.trim()) { setError('Product name is required'); return; }
+    if (!selectedGroupId) { setError('Please select a group'); return; }
     if (selectedItems.length === 0) { setError('Select at least one material'); return; }
 
     setIsSaving(true);
@@ -378,6 +477,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
         transport_cost: parseFloat(transportCost || '0'),
         other_cost: parseFloat(otherCost || '0'),
         wastage_percent: parseFloat(wastagePercent || '0'),
+        group_id: selectedGroupId,
       });
 
       // Show the calculated result before closing
@@ -398,6 +498,8 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
         other_cost: response.other_cost,
         total_cost: response.total_cost,
         created_at: new Date().toISOString(),
+        group_id: response.group_id ?? selectedGroupId,
+        group_name: availableGroups.find(g => g.group_id === selectedGroupId)?.name ?? response.group_name,
       };
 
       // Notify parent after a short display so user can see results
@@ -473,6 +575,35 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                   value={productName}
                   onChange={e => setProductName(e.target.value)}
                 />
+              </div>
+
+              {/* Step 1b — Product Group */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Group <span className="text-red-500">*</span>
+                </label>
+                {groupError && (
+                  <div className="flex items-start gap-2 bg-red-50 border-l-4 border-red-500 rounded-lg px-3 py-2 mb-2">
+                    <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-red-700">{groupError}</p>
+                  </div>
+                )}
+                <select
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all font-medium bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                  value={selectedGroupId}
+                  onChange={e => setSelectedGroupId(e.target.value)}
+                  disabled={isLoadingGroups}
+                  aria-label="Select product group"
+                >
+                  <option value="">
+                    {isLoadingGroups ? 'Loading groups…' : 'Select a group…'}
+                  </option>
+                  {availableGroups.map(group => (
+                    <option key={group.group_id} value={group.group_id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Step 2 — Additional Costs */}
@@ -601,8 +732,8 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
             </button>
             <button
               onClick={handleSubmit}
-              disabled={isSaving || !productName.trim() || selectedItems.length === 0}
-              className={`px-6 py-2.5 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 ${isSaving || !productName.trim() || selectedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isSaving || !productName.trim() || !selectedGroupId || selectedItems.length === 0}
+              className={`px-6 py-2.5 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 ${isSaving || !productName.trim() || !selectedGroupId || selectedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
               {isSaving ? 'Calculating…' : 'Create & Calculate'}

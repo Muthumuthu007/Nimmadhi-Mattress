@@ -17,8 +17,10 @@ const PermissionGuard: React.FC<PermissionGuardProps> = ({ children, permission 
 
     if (!hasPermission(permission)) {
         // User doesn't have the specific permission required for this route.
-        // Redirect them to their "home" page (first allowed route).
-        const redirectPath = getFirstAllowedRoute(permissions, isAdmin);
+        // Redirect them to their "home" page (first allowed route). If none
+        // matches, send them to /unauthorized — a route with no permission
+        // guard of its own — rather than risk looping back into this guard.
+        const redirectPath = getFirstAllowedRoute(permissions, isAdmin) ?? '/unauthorized';
         return <Navigate to={redirectPath} replace />;
     }
 

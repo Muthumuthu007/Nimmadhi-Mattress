@@ -1,10 +1,10 @@
-import { format } from 'date-fns';
+import { formatApiDate } from './dateUtils';
 
 /**
  * Get today's date key in YYYY-MM-DD format
  */
 export const getTodayKey = (): string => {
-    return format(new Date(), 'yyyy-MM-dd');
+    return formatApiDate(new Date(), 'yyyy-MM-dd');
 };
 
 /**

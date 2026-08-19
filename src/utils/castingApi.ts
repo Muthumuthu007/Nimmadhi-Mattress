@@ -11,6 +11,7 @@ export interface CreateCastingPayload {
   transport_cost: number;
   other_cost: number;
   wastage_percent: number;
+  group_id: string;
 }
 
 export interface CreateCastingResponse {
@@ -27,6 +28,8 @@ export interface CreateCastingResponse {
   transport_cost: number;
   other_cost: number;
   total_cost: number;
+  group_id?: string;
+  group_name?: string;
 }
 
 export async function createCastingProduct(
@@ -65,6 +68,8 @@ export interface CastingProductResponse {
   other_cost: number;
   total_cost: number;
   created_at: string;
+  group_id?: string;
+  group_name?: string;
 }
 
 export interface ViewCastingsResponse {

@@ -5,16 +5,16 @@ import {
   ArrowLeft, FileText, Trash2
 } from 'lucide-react';
 import { getMonthlyGrnReport, deleteGrn } from '../utils/grnApi';
-import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { ReportSkeleton } from '../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../utils/dateUtils';
 
 const GrnMonthly = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>(formatApiDate(new Date(), 'yyyy-MM'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,11 +60,11 @@ const GrnMonthly = () => {
     try {
       const exportData = records.map((record, index) => ({
         'Serial no': index + 1,
-        'Date': record.date ? format(new Date(record.date), 'dd MMM yyyy') : '—',
+        'Date': record.date ? formatApiDate(record.date, 'dd MMM yyyy') : '—',
         'Supplier Name': record.supplierName,
         'Material': record.rawMaterial,
         'Bill Number': record.billNumber,
-        'Bill Date': record.billDate ? format(new Date(record.billDate), 'dd MMM yyyy') : '—',
+        'Bill Date': record.billDate ? formatApiDate(record.billDate, 'dd MMM yyyy') : '—',
         'Billed Qty': record.billedQuantity,
         'Received Qty': record.receivedQuantity,
         'Transport': record.transport,
@@ -252,7 +252,7 @@ const GrnMonthly = () => {
                 {filteredRecords.map((record) => (
                   <tr key={record.grnId} className="hover:bg-gray-50 transition-colors">
                     <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-700">
-                      {record.date ? format(new Date(record.date), 'dd MMM yyyy') : '—'}
+                      {record.date ? formatApiDate(record.date, 'dd MMM yyyy') : '—'}
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-sm font-medium text-gray-900">{record.supplierName}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-700">{record.transport}</td>

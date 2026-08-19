@@ -18,9 +18,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
   }
 
   if (requireAdmin && !isAdmin) {
-    // Redirect to their allowed page if user is authenticated but not admin
-    // This prevents them from being stuck on a restricted page or 403
-    const redirectPath = getFirstAllowedRoute(permissions, isAdmin);
+    // Redirect to their allowed page if user is authenticated but not admin.
+    // Fall back to /unauthorized (no permission guard of its own) if they
+    // have no matching permission at all, to avoid a redirect loop.
+    const redirectPath = getFirstAllowedRoute(permissions, isAdmin) ?? '/unauthorized';
     return <Navigate to={redirectPath} replace />;
   }
 

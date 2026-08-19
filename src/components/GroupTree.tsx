@@ -8,12 +8,12 @@ import { HighlightText } from '../utils/searchUtils';
 import { StockAlerts } from './StockAlerts';
 import { checkStockAlerts } from '../utils/stockMonitoring';
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
 import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 import { useAuth } from '../contexts/AuthContext';
 import StockAdjustModal from './StockAdjustModal';
 import { InventorySkeleton } from './skeletons/InventorySkeleton';
 import { useInventorySearch, InventoryGroup, InventoryItem } from '../hooks/useInventorySearch';
+import { formatApiDate } from '../utils/dateUtils';
 
 // Alias types to match existing usage if needed, or just use them
 type MaterialItem = InventoryItem;
@@ -445,7 +445,7 @@ const GroupTree: React.FC = () => {
       XLSX.utils.book_append_sheet(wb, ws, groupName.substring(0, 31)); // Sheet name max 31 chars
 
       // Generate filename with group name and current date
-      const fileName = `${groupName.replace(/[^a-zA-Z0-9]/g, '_ ')}-inventory-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      const fileName = `${groupName.replace(/[^a-zA-Z0-9]/g, '_ ')}-inventory-${formatApiDate(new Date(), 'yyyy-MM-dd')}.xlsx`;
 
       // Download file
       XLSX.writeFile(wb, fileName);
@@ -484,8 +484,16 @@ const GroupTree: React.FC = () => {
     const filteredItems = group.items; // Filtering is handled globally now
 
 
-    // Sort items
+    // Sort items.
+    // While searching, relevance is the primary key so the best match is first;
+    // the user's chosen sort (A-Z etc.) breaks ties within the same relevance
+    // tier. Without a query, sorting behaves exactly as before.
     const sortedItems = [...filteredItems].sort((a, b) => {
+      if (query.trim()) {
+        const relevanceDiff = (b._relevance ?? 0) - (a._relevance ?? 0);
+        if (relevanceDiff !== 0) return relevanceDiff;
+      }
+
       let aVal: any, bVal: any;
       if (sortField === 'name') {
         aVal = a.name.toLowerCase();
@@ -1172,7 +1180,9 @@ const GroupTree: React.FC = () => {
           ) : (
             <div>
               {tree.length === 0 && <div className="text-gray-400">No groups found.</div>}
-              {filteredTree.length === 0 && <div className="text-gray-400">No matching items found.</div>}
+              {tree.length > 0 && filteredTree.length === 0 && (
+                <div className="text-gray-400">No materials match your search.</div>
+              )}
               {filteredTree
                 .slice()
                 .sort((a, b) => {

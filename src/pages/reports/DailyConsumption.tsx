@@ -4,10 +4,10 @@ import {
   Calendar, Download, Loader2, RefreshCw, ArrowLeft,
   AlertCircle, TrendingDown, Package, FileText, BarChart3
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { axiosInstance } from '../../utils/axiosInstance';
 import { useAuth } from '../../contexts/AuthContext';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../../utils/dateUtils';
 
 // Update types for new nested structure
 interface ConsumptionItem {
@@ -31,7 +31,7 @@ interface ConsumptionData {
 const DailyConsumption = () => {
   const navigate = useNavigate();
   const { } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,7 @@ const DailyConsumption = () => {
     try {
       const rows: string[][] = [
         ['Daily Consumption Summary'],
-        [`Date: ${format(new Date(consumptionData.report_date), 'MMMM d, yyyy')}`],
+        [`Date: ${formatApiDate(consumptionData.report_date, 'MMMM d, yyyy')}`],
         [''],
         ['Category', 'Subcategory', 'Material ID', 'Quantity Consumed'],
       ];
@@ -201,7 +201,7 @@ const DailyConsumption = () => {
                   <BarChart3 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   <h2 className="text-xl font-semibold dark:text-white">Consumption Summary</h2>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    ({format(new Date(consumptionData.report_date), 'MMMM d, yyyy')})
+                    ({formatApiDate(consumptionData.report_date, 'MMMM d, yyyy')})
                   </span>
                 </div>
               </div>

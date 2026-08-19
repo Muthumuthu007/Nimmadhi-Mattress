@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
-import XLSX from 'xlsx';
+
+import XLSX from 'xlsx';import { formatApiDate } from '../utils/dateUtils';
+
 
 const WeeklyReport: React.FC = () => {
   const [transactions, setTransactions] = useState([]);
@@ -12,8 +13,8 @@ const WeeklyReport: React.FC = () => {
       
       // Prepare data for Excel
       const data = transactions.map(t => ({
-        'Date': format(new Date(t.date), 'dd/MM/yyyy'),
-        'Time': format(new Date(t.date), 'hh:mm a'),
+        'Date': formatApiDate(t.date, 'dd/MM/yyyy'),
+        'Time': formatApiDate(t.date, 'hh:mm a'),
         'Transaction Type': t.type,
         'Username': t.details?.username || t.details?.user || t.details?.user_name || t.username || t.user || t.user_name || 'N/A',
         'Product': t.details?.product || 'N/A',
@@ -56,7 +57,7 @@ const WeeklyReport: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `weekly-report-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      link.download = `weekly-report-${formatApiDate(new Date(), 'yyyy-MM-dd')}.xlsx`;
       
       // Append to body, click, and cleanup
       document.body.appendChild(link);

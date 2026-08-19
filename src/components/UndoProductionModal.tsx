@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { productionApi } from '../utils/productionApi';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';import { formatApiDate, toTimestamp } from '../utils/dateUtils';
+
 
 interface UndoProductionModalProps {
     isOpen: boolean;
@@ -42,7 +43,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
         setError(null);
         setSuccessMessage(null);
         try {
-            const today = format(new Date(), 'yyyy-MM-dd');
+            const today = formatApiDate(new Date(), 'yyyy-MM-dd');
             const response = await productionApi.getDailyDispatch(today);
 
             if (response.data && Array.isArray(response.data.items)) {
@@ -52,7 +53,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                 );
                 // Sort by timestamp desc (newest first)
                 activeItems.sort((a: any, b: any) => {
-                    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+                    return toTimestamp(b.timestamp) - toTimestamp(a.timestamp);
                 });
                 setItems(activeItems);
             } else {
@@ -154,7 +155,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                                         <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
                                             <p>Quantity: <span className="font-medium text-gray-700 dark:text-gray-300">{item.quantity_produced}</span></p>
                                             <p className="text-xs">Push ID: <span className="font-mono">{item.push_id}</span></p>
-                                            <p className="text-xs">{format(new Date(item.timestamp), 'h:mm a')}</p>
+                                            <p className="text-xs">{formatApiDate(item.timestamp, 'h:mm a')}</p>
                                         </div>
                                     </div>
 

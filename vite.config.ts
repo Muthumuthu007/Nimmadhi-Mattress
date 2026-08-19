@@ -7,6 +7,12 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    // Explicit targets so output is deterministic rather than relying on Vite's
+    // default. Includes Safari 13 so newer syntax (optional chaining, nullish
+    // coalescing, class fields) is transpiled for older Safari / iOS WebKit.
+    target: ['es2019', 'chrome87', 'edge88', 'firefox78', 'safari13'],
+  },
   server: {
     proxy: {
       '/api/casting': {

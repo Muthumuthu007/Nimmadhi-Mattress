@@ -4,6 +4,7 @@ import { Upload, X, AlertTriangle, CheckCircle, Loader2, FileSpreadsheet, Chevro
 import { useAuth } from '../contexts/AuthContext';
 import { axiosInstance } from '../utils/axiosInstance';
 import { useFuzzySearch } from '../hooks/useFuzzySearch';
+import { productGroupApi, ProductGroup } from '../utils/productionApi';
 
 interface ParsedMaterial {
     name: string;
@@ -46,6 +47,13 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
     const [mappingBedId, setMappingBedId] = useState<string | null>(null);
     const [mappingMatIndex, setMappingMatIndex] = useState<number | null>(null);
 
+    // Production group — required by /api/production/create/. Excel rows carry
+    // no group, so one group is chosen for the whole batch.
+    const [availableGroups, setAvailableGroups] = useState<ProductGroup[]>([]);
+    const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+    const [groupError, setGroupError] = useState<string | null>(null);
+    const [selectedGroupId, setSelectedGroupId] = useState('');
+
     // Fuzzy Search
     const { query: mappingQuery, setQuery: setMappingQuery, filteredData } = useFuzzySearch(inventory, ['name', 'item_name', 'item_id', 'id']);
     // Taking top 50 matches
@@ -56,14 +64,26 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
     // but kept just in case structure needs adjustment.
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = Array.from(e.target.files ?? []);
+        if (files.length === 0) return;
 
         setIsParsing(true);
         setIsOpen(true);
         setParsedBeds([]);
         setMappingBedId(null);
         setMappingMatIndex(null);
+
+        // Load selectable production groups for this batch (not fetched on mount,
+        // since the trigger button lives on the Production page permanently).
+        setIsLoadingGroups(true);
+        setGroupError(null);
+        productGroupApi.getGroups()
+            .then(res => {
+                const data = res.data;
+                setAvailableGroups(Array.isArray(data) ? data : (data?.groups || []));
+            })
+            .catch(() => setGroupError('Failed to load production groups'))
+            .finally(() => setIsLoadingGroups(false));
 
         try {
             // 1. Fetch Inventory for Validation
@@ -88,16 +108,36 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
                 console.error("Failed to fetch inventory for validation", err);
             }
 
-            // 2. Read Excel File
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+            // 2. Read + parse each selected Excel file, accumulating the beds.
+            //    Parsing per file is unchanged; results are simply concatenated.
+            const allBeds: ParsedBed[] = [];
+            const failedFiles: string[] = [];
 
-            // 3. Parse Rows
-            const beds = parseExcelData(jsonData, currentInventory);
-            setParsedBeds(beds);
+            for (const file of files) {
+                try {
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data);
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+                    // 3. Parse Rows
+                    allBeds.push(...parseExcelData(jsonData, currentInventory));
+                } catch (fileError) {
+                    // One bad file shouldn't discard the others.
+                    console.error(`Error parsing excel file: ${file.name}`, fileError);
+                    failedFiles.push(file.name);
+                }
+            }
+
+            setParsedBeds(allBeds);
+
+            if (failedFiles.length > 0) {
+                alert(
+                    `Failed to parse ${failedFiles.length} file(s). Please check the format:\n` +
+                    failedFiles.join('\n')
+                );
+            }
 
         } catch (error) {
             console.error("Error parsing excel", error);
@@ -364,6 +404,12 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
     const MAX_BATCH_SIZE = 20;
 
     const handleUpload = async () => {
+        // group_id is required by the create endpoint.
+        if (!selectedGroupId) {
+            setGroupError('Please select a production group before uploading.');
+            return;
+        }
+
         setIsUploading(true);
         let bedsToProcess = parsedBeds.filter(b => b.status !== 'success' && b.isValid);
 
@@ -390,8 +436,9 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
 
                 const payload = {
                     product_name: bed.name,
-                    stock_needed: stockNeeded,
                     username: user.username,
+                    group_id: selectedGroupId,
+                    stock_needed: stockNeeded,
                     wastage_percent: bed.wastagePercent,
                     transport_cost: bed.transportCost,
                     labour_cost: bed.labourCost,
@@ -400,7 +447,13 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
 
                 const response = await axiosInstance.post('/api/production/create/', payload);
 
-                if (response.data && response.data.message === "Product created successfully") {
+                // Match on product_id (or a success message) rather than an exact
+                // message string, so a reworded backend response can't make a
+                // successful create look like a failure.
+                const isCreated = Boolean(response.data?.product_id) ||
+                    String(response.data?.message ?? '').toLowerCase().includes('success');
+
+                if (isCreated) {
                     setParsedBeds(prev => prev.map(p => p.id === bed.id ? { ...p, status: 'success' } : p));
                 } else {
                     throw new Error(response.data.message || "Unknown error");
@@ -439,6 +492,7 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
                 <input
                     type="file"
                     accept=".xlsx, .xls"
+                    multiple
                     className="hidden"
                     ref={fileInputRef}
                     onChange={handleFileSelect}
@@ -710,11 +764,45 @@ export const ProductionExcelUpload: React.FC<ProductionExcelUploadProps> = ({ on
                                     Limit: {MAX_BATCH_SIZE} beds per batch. (+{validCount - MAX_BATCH_SIZE} remaining)
                                 </span>
                             )}
+
+                            {/* Group applied to every product in this batch */}
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="excel-upload-group" className="text-sm font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                    Group <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="excel-upload-group"
+                                    value={selectedGroupId}
+                                    onChange={(e) => {
+                                        setSelectedGroupId(e.target.value);
+                                        if (e.target.value) setGroupError(null);
+                                    }}
+                                    disabled={isLoadingGroups || isUploading}
+                                    className="px-3 py-2 text-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed min-w-[200px]"
+                                >
+                                    <option value="">
+                                        {isLoadingGroups ? 'Loading groups…' : 'Select a group…'}
+                                    </option>
+                                    {availableGroups.map(group => (
+                                        <option key={group.group_id} value={group.group_id}>
+                                            {group.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {groupError && (
+                                <span className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    {groupError}
+                                </span>
+                            )}
+
                             <button
                                 onClick={handleUpload}
-                                disabled={isUploading || validCount === 0}
+                                disabled={isUploading || validCount === 0 || !selectedGroupId}
                                 className={`px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2
-                                    ${(isUploading || validCount === 0) ? 'opacity-50 cursor-not-allowed transform-none' : ''}
+                                    ${(isUploading || validCount === 0 || !selectedGroupId) ? 'opacity-50 cursor-not-allowed transform-none' : ''}
                                 `}
                             >
                                 {isUploading ? (

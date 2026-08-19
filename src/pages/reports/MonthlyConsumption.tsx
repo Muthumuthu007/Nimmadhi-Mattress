@@ -5,10 +5,10 @@ import {
   AlertCircle, Package, FileText, BarChart3, ChevronDown,
   ChevronUp, Search, TrendingDown, Receipt, Tag
 } from 'lucide-react';
-import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { axiosInstance } from '../../utils/axiosInstance';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../../utils/dateUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ interface MonthlyConsumptionData {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const safeDate = (d: string) => { try { return format(new Date(d + 'T00:00:00'), 'MMMM d, yyyy'); } catch { return d; } };
+const safeDate = (d: string) => { try { return formatApiDate(d + 'T00:00:00', 'MMMM d, yyyy'); } catch { return d; } };
 
 function safeArray<T>(val: unknown): T[] {
   return Array.isArray(val) ? val : [];
@@ -302,7 +302,7 @@ const Th: React.FC<{ label: string; onClick?: () => void; align?: 'left' | 'righ
 
 const MonthlyConsumption = () => {
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>(formatApiDate(new Date(), 'yyyy-MM'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -484,7 +484,7 @@ const MonthlyConsumption = () => {
                   Daily Breakdown
                 </h2>
                 <span className="text-sm text-gray-400 dark:text-gray-500">
-                  ({format(new Date(data.start_date + 'T00:00:00'), 'MMM d')} – {format(new Date(data.end_date + 'T00:00:00'), 'MMM d, yyyy')})
+                  ({formatApiDate(data.start_date + 'T00:00:00', 'MMM d')} – {formatApiDate(data.end_date + 'T00:00:00', 'MMM d, yyyy')})
                 </span>
               </div>
               {/* Search */}

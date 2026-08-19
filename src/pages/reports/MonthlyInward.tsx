@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Download, Loader2, RefreshCw, ArrowLeft, AlertCircle, FileText, BarChart3 } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { axiosInstance } from '../../utils/axiosInstance';
 import * as XLSX from 'xlsx';
-import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';import { formatApiDate } from '../../utils/dateUtils';
+
 
 const MonthlyInward = () => {
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>(formatApiDate(new Date(), 'yyyy-MM'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
@@ -121,8 +122,8 @@ const MonthlyInward = () => {
                   {reportData.report_period && (
                     <>
                       {reportData.report_period.start_date === reportData.report_period.end_date
-                        ? `(${format(new Date(reportData.report_period.start_date), 'MMMM yyyy')})`
-                        : `(${format(new Date(reportData.report_period.start_date), 'MMM d, yyyy')} - ${format(new Date(reportData.report_period.end_date), 'MMM d, yyyy')})`}
+                        ? `(${formatApiDate(reportData.report_period.start_date, 'MMMM yyyy')})`
+                        : `(${formatApiDate(reportData.report_period.start_date, 'MMM d, yyyy')} - ${formatApiDate(reportData.report_period.end_date, 'MMM d, yyyy')})`}
                     </>
                   )}
                 </span>
@@ -142,7 +143,7 @@ const MonthlyInward = () => {
                   <div key={date} className="mb-8">
                     <div className="text-md font-semibold text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-2">
                       <Calendar className="inline h-5 w-5 text-indigo-400 dark:text-indigo-500" />
-                      {format(new Date(date), 'MMMM d, yyyy')}
+                      {formatApiDate(date, 'MMMM d, yyyy')}
                     </div>
                     {Object.entries(groups).map(([group, categories]: [string, any]) => (
                       <div key={group} className="mb-4">
@@ -172,7 +173,7 @@ const MonthlyInward = () => {
                                         <td className="px-4 py-2 text-right text-green-700 dark:text-green-400 font-bold">+{entry.inward_quantity}</td>
                                         <td className="px-4 py-2 text-right text-blue-700 dark:text-blue-400 font-bold">{entry.new_quantity}</td>
                                         <td className="px-4 py-2 text-right text-yellow-700 dark:text-yellow-400 font-bold">₹{entry.added_cost.toLocaleString()}</td>
-                                        <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{format(new Date(entry.date), 'MMM d, yyyy')}</td>
+                                        <td className="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{formatApiDate(entry.date, 'MMM d, yyyy')}</td>
                                       </tr>
                                     ))}
                                 </tbody>

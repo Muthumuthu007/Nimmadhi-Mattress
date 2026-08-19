@@ -15,6 +15,7 @@ import DailyConsumption from '../pages/reports/DailyConsumption';
 import WeeklyConsumption from '../pages/reports/WeeklyConsumption';
 import MonthlyConsumption from '../pages/reports/MonthlyConsumption';
 import Login from '../pages/Login';
+import Unauthorized from '../pages/Unauthorized';
 import Admin from '../pages/Admin';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AdminRoute from '../components/AdminRoute';
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/unauthorized',
+    element: <Unauthorized />,
   },
   {
     path: '/signup',
@@ -128,6 +133,7 @@ export const router = createBrowserRouter([
           </PermissionGuard>
         ),
       },
+
       {
         path: 'dispatched',
         element: (

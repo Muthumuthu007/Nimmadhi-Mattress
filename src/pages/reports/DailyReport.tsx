@@ -5,15 +5,15 @@ import {
   Plus, ArrowDownRight, ArrowUpRight, AlertTriangle, Box, Save, Package, Settings, ChevronDown, ChevronRight, Download
 } from 'lucide-react';
 import { axiosInstance } from '../../utils/axiosInstance';
-import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate, toTimestamp } from '../../utils/dateUtils';
 
 const DailyReport = () => {
   const navigate = useNavigate();
   const { } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
@@ -90,8 +90,8 @@ const DailyReport = () => {
       let aVal = a[field];
       let bVal = b[field];
       if (field === 'timestamp') {
-        aVal = aVal ? new Date(aVal).getTime() : 0;
-        bVal = bVal ? new Date(bVal).getTime() : 0;
+        aVal = aVal ? toTimestamp(aVal) : 0;
+        bVal = bVal ? toTimestamp(bVal) : 0;
       } else {
         aVal = (aVal ?? '').toString().toLowerCase();
         bVal = (bVal ?? '').toString().toLowerCase();
@@ -316,7 +316,7 @@ const DailyReport = () => {
                     <span className="hidden sm:inline text-xs text-gray-400 dark:text-gray-500 font-mono">#{tx.transaction_id?.slice(0, 6) ?? ''}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{tx.timestamp ? format(new Date(tx.timestamp), 'HH:mm') : ''}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{tx.timestamp ? formatApiDate(tx.timestamp, 'HH:mm') : ''}</span>
                     <span className="flex items-center gap-1"><User className="h-4 w-4" />{tx.details?.username || 'N/A'}</span>
                   </div>
                 </div>
@@ -483,7 +483,7 @@ const DailyReport = () => {
           tx.operation_type || tx.operation || '',
           tx.transaction_id || '',
           tx.details?.username || '',
-          tx.timestamp ? format(new Date(tx.timestamp), 'yyyy-MM-dd HH:mm:ss') : '',
+          tx.timestamp ? formatApiDate(tx.timestamp, 'yyyy-MM-dd HH:mm:ss') : '',
           ...Array.from(detailKeys).map(k => tx.details?.[k] ?? '')
         ];
         sheetData.push(row);

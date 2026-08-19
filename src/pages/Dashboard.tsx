@@ -55,7 +55,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { useInventory } from '../hooks/useInventory';
 import { useProducts } from '../contexts/ProductContext';
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import { subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { StatsCard } from "../components/dashboard/StatsCard";
@@ -65,30 +65,13 @@ import { Product } from "../types";
 import { apiClient } from "../utils/api";
 import { checkStockAlerts } from "../utils/stockMonitoring";
 import { useAuth } from "../contexts/AuthContext";
+import { toTimestamp, formatApiDate } from '../utils/dateUtils';
 
 const ProductDetailsModal = lazy(() =>
   import("../components/dashboard/ProductDetailsModal").then((m) => ({
     default: m.ProductDetailsModal,
   }))
 );
-
-interface ApiProduct {
-  product_id: string;
-  product_name: string;
-  inventory: string | number;
-  max_produce: string | number;
-  original_max_produce: string | number;
-  production_cost_total: string | number;
-  production_cost_breakdown: { [key: string]: string | number };
-  stock_needed: { [key: string]: string | number };
-  created_at: string;
-  wastage_amount: string | number;
-  wastage_percent: string | number;
-  labour_cost: string | number;
-  transport_cost: string | number;
-  other_cost: string | number;
-  total_cost: string | number;
-}
 
 // --- Types ---
 interface MonthlySummary {
@@ -113,7 +96,10 @@ interface ProductDetails {
 const Dashboard = () => {
   const location = useLocation();
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
+  // Products come from the shared ProductContext, which already parses the
+  // grouped_products response from /api/production/list/ — the same source the
+  // Production page uses. The flat `products` array is what this page renders.
+  const { products, fetchProducts } = useProducts();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,56 +173,18 @@ const Dashboard = () => {
   }, []);
 
   // ---------------------------------------------
-  // FETCH PRODUCTS
+  // LOAD PRODUCTS (via shared ProductContext)
   // ---------------------------------------------
-  const fetchProducts = useCallback(async () => {
+  const loadProducts = useCallback(async () => {
     try {
-      const response = await apiClient.post('/api/production/list/', {
-        username: user.username
-      });
-      const productsData = response.data;
-
-      const productsArray = Array.isArray(productsData)
-        ? productsData
-        : productsData.products || productsData.data?.products || [];
-
-      const mapped = productsArray.map((product: ApiProduct) => {
-        const materials = Object.entries(product.stock_needed || {}).map(
-          ([materialName, quantity]) => ({
-            materialName,
-            quantity: Number(quantity) || 0,
-          })
-        );
-
-        return {
-          id: product.product_id,
-          name: product.product_name,
-          inventory: Number(product.inventory),
-          maxProduce: Number(product.max_produce),
-          originalMaxProduce: Number(product.original_max_produce),
-          productionCostTotal: parseFloat(String(product.production_cost_total)),
-          productionCostBreakdown: Object.entries(product.production_cost_breakdown || {}).reduce((acc, [k, v]) => ({ ...acc, [k]: Number(v) }), {}),
-          stockNeeded: product.stock_needed || {},
-          createdAt: product.created_at,
-          wastage: parseFloat(String(product.wastage_percent)),
-          wastageAmount: parseFloat(String(product.wastage_amount)),
-          laborCost: parseFloat(String(product.labour_cost)),
-          transportCost: parseFloat(String(product.transport_cost)),
-          otherCost: parseFloat(String(product.other_cost)),
-          totalCost: parseFloat(String(product.total_cost)),
-          groupChain: {},
-          materials,
-        };
-      });
-
-      setProducts(mapped);
+      await fetchProducts();
       setError(null);
-    } catch (err: any) {
+    } catch {
       setError("Failed to load products");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchProducts]);
 
   // ---------------------------------------------
   // MONTHLY SUMMARY
@@ -277,20 +225,25 @@ const Dashboard = () => {
   }, [user.username]);
 
   useEffect(() => {
-    fetchProducts();
+    // loadProducts wraps the context's fetchProducts, which no-ops until
+    // AuthContext finishes hydrating the user from localStorage (an async
+    // effect of its own). Depending on `user.username` re-runs this once
+    // auth is ready, instead of silently giving up on the very first render.
+    loadProducts();
     fetchLowStockAndRawMaterials();
     fetchMonthlySummary();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.username]);
 
   // ---------------------------------------------
   // REFRESH DASHBOARD
   // ---------------------------------------------
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await fetchProducts();
+    await loadProducts();
     await fetchLowStockAndRawMaterials();
     setIsRefreshing(false);
-  }, [fetchProducts, fetchLowStockAndRawMaterials]);
+  }, [loadProducts, fetchLowStockAndRawMaterials]);
 
   // ---------------------------------------------
   // FILTER + SORT (heavy → memoized)
@@ -315,7 +268,7 @@ const Dashboard = () => {
         return arr.sort((a, b) => b.productionCostTotal - a.productionCostTotal);
       case "date":
         return arr.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          (a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt)
         );
       default:
         return arr;
@@ -395,7 +348,7 @@ const Dashboard = () => {
       "Other Cost": Number(p.otherCost) || 0,
       "Total Cost": Number(p.totalCost) || 0,
       Wastage: Number(p.wastageAmount) || 0,
-      "Created At": p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : "",
+      "Created At": formatApiDate(p.createdAt, 'yyyy-MM-dd', ''),
     }));
     const wsProducts = XLSX.utils.json_to_sheet(productData);
     XLSX.utils.book_append_sheet(wb, wsProducts, "Products");
@@ -618,6 +571,19 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Product Catalog error — surfaced instead of failing silently */}
+      {error && (
+        <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-xl px-4 py-3">
+          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+              Open the browser console for the request/response details, or click Refresh to try again.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* SEARCH + SORT - Enhanced */}
       <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">

@@ -5,10 +5,10 @@ import {
   ArrowLeft, Package, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { axiosInstance } from '../../utils/axiosInstance';
-import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../../utils/dateUtils';
 
 
 
@@ -16,7 +16,7 @@ import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 
 const MonthlyReport = () => {
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>(formatApiDate(new Date(), 'yyyy-MM'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);

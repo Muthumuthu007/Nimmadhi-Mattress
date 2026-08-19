@@ -1,7 +1,8 @@
 import { memo, useMemo } from 'react';
-import { format } from 'date-fns';
+
 import { Product } from '../../types';
-import { ChevronRight, Package, AlertTriangle, DollarSign, TrendingUp, Truck } from 'lucide-react';
+import { ChevronRight, Package, AlertTriangle, DollarSign, TrendingUp, Truck } from 'lucide-react';import { formatApiDate } from '../../utils/dateUtils';
+
 
 interface DashboardProductCardProps {
   product: Product;
@@ -30,7 +31,7 @@ export const DashboardProductCard = memo(({ product, onViewDetails }: DashboardP
           <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-1 truncate max-w-[200px]" title={product.name}>{product.name}</h3>
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-mono">ID: {product.id.slice(0, 8)}...</span>
-            <span>{format(new Date(product.createdAt), 'MMM d, yyyy')}</span>
+            <span>{formatApiDate(product.createdAt, 'MMM d, yyyy')}</span>
           </div>
         </div>
         <div className={`px-3 py-1 rounded-full text-xs font-semibold ${product.maxProduce > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>

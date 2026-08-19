@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import { FilePlus2, Download, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { createGrn, CreateGrnResponse, getGrnById, GrnRecord, getGrnByTransport, getGrnBySupplier } from '../utils/grnApi';
 import QuickAddInput from '../components/QuickAddInput';
+import { formatApiDate, toTimestamp } from '../utils/dateUtils';
 
 
 interface GrnFormState {
@@ -490,7 +490,7 @@ const GRN: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <div className="inline-flex items-center px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-semibold">
-                      {createdRecord.date && format(new Date(createdRecord.date), 'dd MMM yyyy')}
+                      {createdRecord.date && formatApiDate(createdRecord.date, 'dd MMM yyyy')}
                     </div>
                   </div>
                 </div>
@@ -722,8 +722,8 @@ const GRN: React.FC = () => {
                         let aVal = a[transportSortField];
                         let bVal = b[transportSortField];
                         if (transportSortField === 'date') {
-                          aVal = new Date(aVal).getTime();
-                          bVal = new Date(bVal).getTime();
+                          aVal = toTimestamp(aVal);
+                          bVal = toTimestamp(bVal);
                         } else if (typeof aVal === 'string') {
                           aVal = aVal.toLowerCase();
                           bVal = (bVal || '').toLowerCase();
@@ -735,7 +735,7 @@ const GRN: React.FC = () => {
                       .map((record) => (
                         <tr key={record.grnId} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors">
                           <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-700 dark:text-gray-300">
-                            {record.date ? format(new Date(record.date), 'dd MMM yyyy') : '—'}
+                            {record.date ? formatApiDate(record.date, 'dd MMM yyyy') : '—'}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-sm font-medium text-gray-900 dark:text-white">{record.supplierName}</td>
                           <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-700 dark:text-gray-300">{record.rawMaterial}</td>
@@ -867,8 +867,8 @@ const GRN: React.FC = () => {
                         let aVal = a[supplierSortField];
                         let bVal = b[supplierSortField];
                         if (supplierSortField === 'date') {
-                          aVal = new Date(aVal).getTime();
-                          bVal = new Date(bVal).getTime();
+                          aVal = toTimestamp(aVal);
+                          bVal = toTimestamp(bVal);
                         } else if (typeof aVal === 'string') {
                           aVal = aVal.toLowerCase();
                           bVal = (bVal || '').toLowerCase();
@@ -880,7 +880,7 @@ const GRN: React.FC = () => {
                       .map((record) => (
                         <tr key={record.grnId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/20 transition-colors">
                           <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-700 dark:text-gray-300">
-                            {record.date ? format(new Date(record.date), 'dd MMM yyyy') : '—'}
+                            {record.date ? formatApiDate(record.date, 'dd MMM yyyy') : '—'}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-sm font-medium text-gray-900 dark:text-white">{record.supplierName}</td>
                           <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-700 dark:text-gray-300">{record.rawMaterial}</td>

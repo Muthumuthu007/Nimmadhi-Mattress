@@ -5,17 +5,18 @@ import {
   ArrowLeft, Package, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { makeApiRequest } from '../utils/api';
-import { format } from 'date-fns';
+
 import { useAuth } from '../contexts/AuthContext';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
 import * as XLSX from 'xlsx';
-import { ReportSkeleton } from '../components/skeletons/ReportSkeleton';
+import { ReportSkeleton } from '../components/skeletons/ReportSkeleton';import { formatApiDate, toTimestamp } from '../utils/dateUtils';
+
 
 const DispatchedWeekly = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [fromDate, setFromDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [toDate, setToDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [fromDate, setFromDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
+  const [toDate, setToDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,8 +146,8 @@ const DispatchedWeekly = () => {
       let aVal = a[sortField];
       let bVal = b[sortField];
       if (sortField === 'timestamp') {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
+        aVal = toTimestamp(aVal);
+        bVal = toTimestamp(bVal);
       } else if (typeof aVal === 'string' && typeof bVal === 'string') {
         aVal = aVal.toLowerCase();
         bVal = bVal.toLowerCase();
@@ -395,7 +396,7 @@ const DispatchedWeekly = () => {
                 </div>
               </div>
               <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
-                <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19a6 6 0 01-12 0V5a2 2 0 012-2h8a2 2 0 012 2v14z" /></svg>{record.timestamp ? format(new Date(record.timestamp), 'PPP, p') : ''}</div>
+                <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19a6 6 0 01-12 0V5a2 2 0 012-2h8a2 2 0 012 2v14z" /></svg>{record.timestamp ? formatApiDate(record.timestamp, 'PPP, p') : ''}</div>
                 <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{record.username}</div>
               </div>
             </div>

@@ -4,7 +4,8 @@ import { axiosInstance } from '../../utils/axiosInstance';
 import { FileSpreadsheet, Loader2, ArrowLeft, Download } from 'lucide-react';
 import { format, parse, getDaysInMonth } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';import { formatApiDate } from '../../utils/dateUtils';
+
 
 interface OutwardItem {
     item_id: string;
@@ -27,7 +28,7 @@ interface ApiResponse {
 
 const MonthlyOutwardGrid = () => {
     const navigate = useNavigate();
-    const [month, setMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+    const [month, setMonth] = useState<string>(formatApiDate(new Date(), 'yyyy-MM'));
     const [data, setData] = useState<ApiResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

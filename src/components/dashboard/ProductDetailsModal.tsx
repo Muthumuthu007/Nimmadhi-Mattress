@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useCallback, Suspense } from 'react';
-import { format } from 'date-fns';
+import { formatApiDate } from '../../utils/dateUtils';
 
 // Lazy-load heavy lucide icons
 const X = React.lazy(() => import('lucide-react').then(m => ({ default: m.X })));
@@ -33,7 +33,7 @@ const ProductDetailsModalComponent = ({ product, onClose }: Props) => {
   }, []);
 
   const createdDate = useMemo(
-    () => format(new Date(product.createdAt), 'PPp'),
+    () => formatApiDate(product.createdAt, 'PPp'),
     [product.createdAt]
   );
 

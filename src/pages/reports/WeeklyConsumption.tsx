@@ -4,9 +4,9 @@ import {
   Calendar, Download, Loader2, RefreshCw, ArrowLeft,
   AlertCircle, Package, FileText, BarChart3
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { axiosInstance } from '../../utils/axiosInstance';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../../utils/dateUtils';
 
 // Update types for new structure
 interface ConsumptionItem {
@@ -29,8 +29,8 @@ function safeArray<T>(val: unknown): T[] {
 
 const WeeklyConsumption = () => {
   const navigate = useNavigate();
-  const [startDate, setStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState<string>(formatApiDate(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +125,7 @@ const WeeklyConsumption = () => {
 
       return (
         <div key={date} className="mb-8">
-          <h4 className="text-md font-semibold text-indigo-700 dark:text-indigo-400 mb-2">{format(new Date(date), 'MMMM d, yyyy')}</h4>
+          <h4 className="text-md font-semibold text-indigo-700 dark:text-indigo-400 mb-2">{formatApiDate(date, 'MMMM d, yyyy')}</h4>
           <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
@@ -263,7 +263,7 @@ const WeeklyConsumption = () => {
                   <BarChart3 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   <h2 className="text-xl font-semibold dark:text-white">Weekly Summary</h2>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    ({format(new Date(consumptionData.start_date), 'MMMM d')} - {format(new Date(consumptionData.end_date), 'MMMM d, yyyy')})
+                    ({formatApiDate(consumptionData.start_date, 'MMMM d')} - {formatApiDate(consumptionData.end_date, 'MMMM d, yyyy')})
                   </span>
                 </div>
               </div>
