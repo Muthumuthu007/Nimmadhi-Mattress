@@ -9,13 +9,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate } from '../../utils/dateUtils';
 
-// Update types for new nested structure
+// Types for the current API response structure.
+// Note: the backend key is "stock_summary" (previously "consumption_summary"),
+// and each item now also reports inward quantity/cost and supplier(s), in
+// addition to quantity consumed.
 interface ConsumptionItem {
   item_id: string;
-  total_quantity_consumed: number;
+  total_quantity_consumed?: number | null;
+  total_quantity_added?: number | null;
+  total_added_cost?: number | null;
+  suppliers?: string[] | null;
 }
 
-interface ConsumptionSummary {
+interface StockSummary {
   [category: string]: {
     [subcategory: string]: ConsumptionItem[];
   };
@@ -23,10 +29,16 @@ interface ConsumptionSummary {
 
 interface ConsumptionData {
   report_date: string;
-  consumption_summary: ConsumptionSummary;
+  stock_summary: StockSummary;
   total_consumption_quantity: number;
   total_consumption_amount: number;
+  total_inward_quantity?: number;
+  total_inward_amount?: number;
 }
+
+// Missing/null numeric fields render as 0 rather than "NaN" or blank.
+const safeNumber = (value: number | null | undefined): number =>
+  typeof value === 'number' && !Number.isNaN(value) ? value : 0;
 
 const DailyConsumption = () => {
   const navigate = useNavigate();
@@ -37,24 +49,24 @@ const DailyConsumption = () => {
   const [error, setError] = useState<string | null>(null);
   const [consumptionData, setConsumptionData] = useState<ConsumptionData | null>(null);
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<{ field: 'item_id' | 'total_quantity_consumed'; dir: 'asc' | 'desc' }>({ field: 'item_id', dir: 'asc' });
+  const [sort, setSort] = useState<{ field: 'item_id' | 'total_quantity_consumed' | 'total_quantity_added' | 'total_added_cost'; dir: 'asc' | 'desc' }>({ field: 'item_id', dir: 'asc' });
 
   // Helper to flatten nested summary for search/sort
   const getFilteredAndSorted = () => {
     if (!consumptionData) return [];
     const result: { category: string; subcategory: string; item: ConsumptionItem }[] = [];
-    Object.entries(consumptionData.consumption_summary).forEach(([category, subcats]) => {
-      Object.entries(subcats).forEach(([subcategory, items]) => {
-        items.forEach(item => {
-          if (item.item_id.toLowerCase().includes(search.toLowerCase())) {
+    Object.entries(consumptionData.stock_summary ?? {}).forEach(([category, subcats]) => {
+      Object.entries(subcats ?? {}).forEach(([subcategory, items]) => {
+        (items ?? []).forEach(item => {
+          if ((item.item_id ?? '').toLowerCase().includes(search.toLowerCase())) {
             result.push({ category, subcategory, item });
           }
         });
       });
     });
     return result.sort((a, b) => {
-      let aVal = a.item[sort.field];
-      let bVal = b.item[sort.field];
+      let aVal: string | number = a.item[sort.field] ?? (sort.field === 'item_id' ? '' : 0);
+      let bVal: string | number = b.item[sort.field] ?? (sort.field === 'item_id' ? '' : 0);
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
       if (aVal < bVal) return sort.dir === 'asc' ? -1 : 1;
@@ -92,24 +104,29 @@ const DailyConsumption = () => {
         ['Daily Consumption Summary'],
         [`Date: ${formatApiDate(consumptionData.report_date, 'MMMM d, yyyy')}`],
         [''],
-        ['Category', 'Subcategory', 'Material ID', 'Quantity Consumed'],
+        ['Category', 'Subcategory', 'Material ID', 'Quantity Consumed', 'Quantity Added', 'Added Cost (₹)', 'Suppliers'],
       ];
-      Object.entries(consumptionData.consumption_summary).forEach(([category, subcats]) => {
-        Object.entries(subcats).forEach(([subcategory, items]) => {
-          items.forEach(item => {
+      Object.entries(consumptionData.stock_summary ?? {}).forEach(([category, subcats]) => {
+        Object.entries(subcats ?? {}).forEach(([subcategory, items]) => {
+          (items ?? []).forEach(item => {
             rows.push([
               category,
               subcategory,
-              item.item_id,
-              item.total_quantity_consumed.toString(),
+              item.item_id ?? '',
+              safeNumber(item.total_quantity_consumed).toString(),
+              safeNumber(item.total_quantity_added).toString(),
+              safeNumber(item.total_added_cost).toString(),
+              (item.suppliers ?? []).join('; '),
             ]);
           });
         });
       });
       rows.push(['']);
       rows.push(['Totals']);
-      rows.push(['Total Quantity', '', '', consumptionData.total_consumption_quantity.toString()]);
-      rows.push(['Total Amount (₹)', '', '', consumptionData.total_consumption_amount.toString()]);
+      rows.push(['Total Consumption Quantity', '', '', safeNumber(consumptionData.total_consumption_quantity).toString()]);
+      rows.push(['Total Consumption Amount (₹)', '', '', safeNumber(consumptionData.total_consumption_amount).toString()]);
+      rows.push(['Total Inward Quantity', '', '', safeNumber(consumptionData.total_inward_quantity).toString()]);
+      rows.push(['Total Inward Amount (₹)', '', '', safeNumber(consumptionData.total_inward_amount).toString()]);
       const csvContent = rows.map(row => row.join(',')).join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
@@ -205,13 +222,13 @@ const DailyConsumption = () => {
                   </span>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-6 border border-indigo-100 dark:border-indigo-800">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Total Quantity Consumed</p>
                       <p className="mt-2 text-3xl font-bold text-indigo-900 dark:text-indigo-300">
-                        {consumptionData.total_consumption_quantity.toLocaleString()} units
+                        {safeNumber(consumptionData.total_consumption_quantity).toLocaleString()} units
                       </p>
                     </div>
                     <Package className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
@@ -222,10 +239,32 @@ const DailyConsumption = () => {
                     <div>
                       <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Consumption Cost</p>
                       <p className="mt-2 text-3xl font-bold text-green-900 dark:text-green-300">
-                        ₹{consumptionData.total_consumption_amount.toLocaleString()}
+                        ₹{safeNumber(consumptionData.total_consumption_amount).toLocaleString()}
                       </p>
                     </div>
                     <TrendingDown className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 border border-blue-100 dark:border-blue-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Quantity Added</p>
+                      <p className="mt-2 text-3xl font-bold text-blue-900 dark:text-blue-300">
+                        {safeNumber(consumptionData.total_inward_quantity).toLocaleString()} units
+                      </p>
+                    </div>
+                    <Package className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-6 border border-amber-100 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Added Cost</p>
+                      <p className="mt-2 text-3xl font-bold text-amber-900 dark:text-amber-300">
+                        ₹{safeNumber(consumptionData.total_inward_amount).toLocaleString()}
+                      </p>
+                    </div>
+                    <TrendingDown className="h-8 w-8 text-amber-600 dark:text-amber-400 rotate-180" />
                   </div>
                 </div>
               </div>
@@ -242,16 +281,16 @@ const DailyConsumption = () => {
                   />
                 </div>
                 {/* Render by category and subcategory */}
-                {Object.entries(consumptionData.consumption_summary).map(([category, subcats]) => (
+                {Object.entries(consumptionData.stock_summary ?? {}).map(([category, subcats]) => (
                   <div key={category} className="mb-8">
                     <h4 className="text-md font-semibold text-indigo-700 dark:text-indigo-400 mb-2">{category}</h4>
-                    {Object.entries(subcats).map(([subcategory, items]) => {
+                    {Object.entries(subcats ?? {}).map(([subcategory, items]) => {
                       // Filter and sort items for this subcategory
-                      const filteredItems = items
-                        .filter(item => item.item_id.toLowerCase().includes(search.toLowerCase()))
+                      const filteredItems = (items ?? [])
+                        .filter(item => (item.item_id ?? '').toLowerCase().includes(search.toLowerCase()))
                         .sort((a, b) => {
-                          let aVal = a[sort.field];
-                          let bVal = b[sort.field];
+                          let aVal: string | number = a[sort.field] ?? (sort.field === 'item_id' ? '' : 0);
+                          let bVal: string | number = b[sort.field] ?? (sort.field === 'item_id' ? '' : 0);
                           if (typeof aVal === 'string') aVal = aVal.toLowerCase();
                           if (typeof bVal === 'string') bVal = bVal.toLowerCase();
                           if (aVal < bVal) return sort.dir === 'asc' ? -1 : 1;
@@ -280,16 +319,42 @@ const DailyConsumption = () => {
                                     Quantity Consumed
                                     {sort.field === 'total_quantity_consumed' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
                                   </th>
+                                  <th
+                                    className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                                    onClick={() => setSort(s => ({ field: 'total_quantity_added', dir: s.field === 'total_quantity_added' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                                  >
+                                    Quantity Added
+                                    {sort.field === 'total_quantity_added' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                                  </th>
+                                  <th
+                                    className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                                    onClick={() => setSort(s => ({ field: 'total_added_cost', dir: s.field === 'total_added_cost' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                                  >
+                                    Added Cost
+                                    {sort.field === 'total_added_cost' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Suppliers
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {filteredItems.map((item, index) => (
                                   <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                      {item.item_id}
+                                      {item.item_id || '—'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                                      {item.total_quantity_consumed.toLocaleString()} units
+                                      {safeNumber(item.total_quantity_consumed).toLocaleString()} units
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                                      {safeNumber(item.total_quantity_added).toLocaleString()} units
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                                      ₹{safeNumber(item.total_added_cost).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                      {item.suppliers && item.suppliers.length > 0 ? item.suppliers.join(', ') : '—'}
                                     </td>
                                   </tr>
                                 ))}
@@ -300,8 +365,15 @@ const DailyConsumption = () => {
                                     Total
                                   </th>
                                   <th className="px-6 py-3 text-right text-sm text-gray-900 dark:text-white">
-                                    {filteredItems.reduce((sum, item) => sum + item.total_quantity_consumed, 0).toLocaleString()} units
+                                    {filteredItems.reduce((sum, item) => sum + safeNumber(item.total_quantity_consumed), 0).toLocaleString()} units
                                   </th>
+                                  <th className="px-6 py-3 text-right text-sm text-gray-900 dark:text-white">
+                                    {filteredItems.reduce((sum, item) => sum + safeNumber(item.total_quantity_added), 0).toLocaleString()} units
+                                  </th>
+                                  <th className="px-6 py-3 text-right text-sm text-gray-900 dark:text-white">
+                                    ₹{filteredItems.reduce((sum, item) => sum + safeNumber(item.total_added_cost), 0).toLocaleString()}
+                                  </th>
+                                  <th></th>
                                 </tr>
                               </tfoot>
                             </table>

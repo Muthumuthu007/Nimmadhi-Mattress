@@ -2,30 +2,45 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Download, Loader2, RefreshCw, ArrowLeft,
-  AlertCircle, Package, FileText, BarChart3
+  AlertCircle, Package, FileText, BarChart3, TrendingDown
 } from 'lucide-react';
 import { axiosInstance } from '../../utils/axiosInstance';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate } from '../../utils/dateUtils';
 
-// Update types for new structure
+// Types for the current API response structure.
+// Note: the top-level key is now "consumption_summary" (previously
+// "daily_consumption"), and each date now maps to a category -> subcategory ->
+// items hierarchy (the same shape used by the Daily Consumption report),
+// rather than a flat array of items. Backend also now supplies the
+// week's totals directly instead of the frontend summing them.
 interface ConsumptionItem {
   item_id: string;
-  quantity: number;
+  total_quantity_consumed?: number | null;
+  total_quantity_added?: number | null;
+  total_added_cost?: number | null;
+  suppliers?: string[] | null;
 }
 
+type SubCategoryMap = { [subcategory: string]: ConsumptionItem[] };
+type CategoryMap = { [category: string]: SubCategoryMap };
+type DayMap = { [date: string]: CategoryMap };
+
 interface WeeklyConsumptionData {
-  start_date: string;
-  end_date: string;
-  daily_consumption: {
-    [date: string]: ConsumptionItem[];
-  };
+  report_date: string;
+  consumption_summary: DayMap;
+  total_consumption_quantity: number;
+  total_consumption_amount: number;
 }
 
 // Utility to ensure a value is always an array
 function safeArray<T>(val: unknown): T[] {
   return Array.isArray(val) ? val : [];
 }
+
+// Missing/null numeric fields render as 0 rather than "NaN" or blank.
+const safeNumber = (value: number | null | undefined): number =>
+  typeof value === 'number' && !Number.isNaN(value) ? value : 0;
 
 const WeeklyConsumption = () => {
   const navigate = useNavigate();
@@ -36,12 +51,7 @@ const WeeklyConsumption = () => {
   const [error, setError] = useState<string | null>(null);
   const [consumptionData, setConsumptionData] = useState<WeeklyConsumptionData | null>(null);
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<{ field: 'item_id' | 'quantity'; dir: 'asc' | 'desc' }>({ field: 'item_id', dir: 'asc' });
-
-  // Compute totals dynamically
-  const totalConsumptionQuantity = consumptionData
-    ? Object.values(consumptionData.daily_consumption).flat().reduce((sum, item) => sum + item.quantity, 0)
-    : 0;
+  const [sort, setSort] = useState<{ field: 'item_id' | 'total_quantity_consumed' | 'total_quantity_added' | 'total_added_cost'; dir: 'asc' | 'desc' }>({ field: 'item_id', dir: 'asc' });
 
   const fetchConsumption = async () => {
     setIsLoading(true);
@@ -67,22 +77,32 @@ const WeeklyConsumption = () => {
     try {
       const rows: string[][] = [
         ['Weekly Consumption Summary'],
-        [`Date Range: ${consumptionData.start_date} to ${consumptionData.end_date}`],
+        [`Date Range: ${startDate} to ${endDate}`],
         [''],
-        ['Date', 'Material ID', 'Quantity Consumed'],
+        ['Date', 'Category', 'Subcategory', 'Material ID', 'Quantity Consumed', 'Quantity Added', 'Added Cost (₹)', 'Suppliers'],
       ];
-      Object.entries(consumptionData.daily_consumption).forEach(([date, items]) => {
-        items.forEach(item => {
-          rows.push([
-            date,
-            item.item_id,
-            item.quantity.toString(),
-          ]);
+      Object.entries(consumptionData.consumption_summary ?? {}).forEach(([date, categories]) => {
+        Object.entries(categories ?? {}).forEach(([category, subcats]) => {
+          Object.entries(subcats ?? {}).forEach(([subcategory, items]) => {
+            safeArray<ConsumptionItem>(items).forEach(item => {
+              rows.push([
+                date,
+                category,
+                subcategory,
+                item.item_id ?? '',
+                safeNumber(item.total_quantity_consumed).toString(),
+                safeNumber(item.total_quantity_added).toString(),
+                safeNumber(item.total_added_cost).toString(),
+                (item.suppliers ?? []).join('; '),
+              ]);
+            });
+          });
         });
       });
       rows.push(['']);
       rows.push(['Totals']);
-      rows.push(['', 'Total Quantity', totalConsumptionQuantity.toString()]);
+      rows.push(['Total Consumption Quantity', '', '', '', safeNumber(consumptionData.total_consumption_quantity).toString()]);
+      rows.push(['Total Consumption Amount (₹)', '', '', '', safeNumber(consumptionData.total_consumption_amount).toString()]);
 
       const csvContent = rows.map(row => row.join(',')).join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -100,76 +120,148 @@ const WeeklyConsumption = () => {
     }
   };
 
-  // Helper function to render the weekly consumption breakdown
+  type SortState = { field: 'item_id' | 'total_quantity_consumed' | 'total_quantity_added' | 'total_added_cost'; dir: 'asc' | 'desc' };
+
+  // Helper function to render the weekly consumption breakdown.
+  // Each date now maps to a category -> subcategory -> items hierarchy (same
+  // shape as the Daily Consumption report) instead of a flat item array, and
+  // a date with no categories at all (e.g. "2026-07-01": {}) simply renders
+  // nothing for that day rather than an empty table.
   function renderWeeklyBreakdown(
-    daily_consumption: { [date: string]: ConsumptionItem[] },
+    consumption_summary: DayMap,
     search: string,
-    sort: { field: 'item_id' | 'quantity'; dir: 'asc' | 'desc' },
-    setSort: React.Dispatch<React.SetStateAction<{ field: 'item_id' | 'quantity'; dir: 'asc' | 'desc' }>>
+    sort: SortState,
+    setSort: React.Dispatch<React.SetStateAction<SortState>>
   ) {
-    return (Object.entries(daily_consumption) as [string, ConsumptionItem[]][]).map(([date, items]) => {
-      const safeItems: ConsumptionItem[] = safeArray<ConsumptionItem>(items);
-      const filteredItems: ConsumptionItem[] = safeItems
-        .filter((item: ConsumptionItem) => item.item_id.toLowerCase().includes(search.toLowerCase()))
-        .sort((a: ConsumptionItem, b: ConsumptionItem) => {
-          let aVal = a[sort.field];
-          let bVal = b[sort.field];
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          if (aVal < bVal) return sort.dir === 'asc' ? -1 : 1;
-          if (aVal > bVal) return sort.dir === 'asc' ? 1 : -1;
-          return 0;
+    return Object.entries(consumption_summary ?? {}).map(([date, categories]) => {
+      const catEntries = Object.entries(categories ?? {});
+      if (catEntries.length === 0) return null;
+
+      // Determine whether this date has any matching item at all, so a day
+      // with data but no search matches doesn't render an empty shell.
+      let dateHasMatch = false;
+
+      const categoryBlocks = catEntries.map(([category, subcats]) => {
+        const subcategoryBlocks = Object.entries(subcats ?? {}).map(([subcategory, items]) => {
+          const filteredItems: ConsumptionItem[] = safeArray<ConsumptionItem>(items)
+            .filter(item => (item.item_id ?? '').toLowerCase().includes(search.toLowerCase()))
+            .sort((a, b) => {
+              let aVal: string | number = a[sort.field] ?? (sort.field === 'item_id' ? '' : 0);
+              let bVal: string | number = b[sort.field] ?? (sort.field === 'item_id' ? '' : 0);
+              if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+              if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+              if (aVal < bVal) return sort.dir === 'asc' ? -1 : 1;
+              if (aVal > bVal) return sort.dir === 'asc' ? 1 : -1;
+              return 0;
+            });
+
+          if (filteredItems.length === 0) return null;
+          dateHasMatch = true;
+
+          return (
+            <div key={subcategory} className="mb-4">
+              <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{subcategory}</h5>
+              <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                        onClick={() => setSort(s => ({ field: 'item_id', dir: s.field === 'item_id' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Material ID
+                        {sort.field === 'item_id' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                        onClick={() => setSort(s => ({ field: 'total_quantity_consumed', dir: s.field === 'total_quantity_consumed' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Quantity Consumed
+                        {sort.field === 'total_quantity_consumed' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                        onClick={() => setSort(s => ({ field: 'total_quantity_added', dir: s.field === 'total_quantity_added' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Quantity Added
+                        {sort.field === 'total_quantity_added' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                        onClick={() => setSort(s => ({ field: 'total_added_cost', dir: s.field === 'total_added_cost' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Added Cost
+                        {sort.field === 'total_added_cost' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Suppliers
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredItems.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {item.item_id || '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                          {safeNumber(item.total_quantity_consumed).toLocaleString()} units
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                          {safeNumber(item.total_quantity_added).toLocaleString()} units
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                          ₹{safeNumber(item.total_added_cost).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {item.suppliers && item.suppliers.length > 0 ? item.suppliers.join(', ') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                        Total
+                      </th>
+                      <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                        {filteredItems.reduce((sum, item) => sum + safeNumber(item.total_quantity_consumed), 0).toLocaleString()} units
+                      </th>
+                      <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                        {filteredItems.reduce((sum, item) => sum + safeNumber(item.total_quantity_added), 0).toLocaleString()} units
+                      </th>
+                      <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                        ₹{filteredItems.reduce((sum, item) => sum + safeNumber(item.total_added_cost), 0).toLocaleString()}
+                      </th>
+                      <th></th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          );
         });
 
-      if (filteredItems.length === 0) return null;
+        const visibleSubcategoryBlocks = subcategoryBlocks.filter(Boolean);
+        if (visibleSubcategoryBlocks.length === 0) return null;
+
+        return (
+          <div key={category} className="mb-6">
+            <h4 className="text-md font-semibold text-indigo-700 dark:text-indigo-400 mb-2">{category}</h4>
+            {visibleSubcategoryBlocks}
+          </div>
+        );
+      });
+
+      const visibleCategoryBlocks = categoryBlocks.filter(Boolean);
+      if (!dateHasMatch || visibleCategoryBlocks.length === 0) return null;
 
       return (
         <div key={date} className="mb-8">
-          <h4 className="text-md font-semibold text-indigo-700 dark:text-indigo-400 mb-2">{formatApiDate(date, 'MMMM d, yyyy')}</h4>
-          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
-                    onClick={() => setSort((s: { field: 'item_id' | 'quantity'; dir: 'asc' | 'desc' }) => ({ field: 'item_id', dir: s.field === 'item_id' && s.dir === 'asc' ? 'desc' : 'asc' }))}
-                  >
-                    Material ID
-                    {sort.field === 'item_id' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
-                  </th>
-                  <th
-                    className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
-                    onClick={() => setSort((s: { field: 'item_id' | 'quantity'; dir: 'asc' | 'desc' }) => ({ field: 'quantity', dir: s.field === 'quantity' && s.dir === 'asc' ? 'desc' : 'asc' }))}
-                  >
-                    Quantity Consumed
-                    {sort.field === 'quantity' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredItems.map((item: ConsumptionItem, index: number) => (
-                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {item.item_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      {item.quantity.toLocaleString()} units
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
-                    {filteredItems.reduce((sum: number, item: ConsumptionItem) => sum + item.quantity, 0).toLocaleString()} units
-                  </th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+            {formatApiDate(date, 'MMMM d, yyyy')}
+          </h3>
+          {visibleCategoryBlocks}
         </div>
       );
     });
@@ -263,7 +355,7 @@ const WeeklyConsumption = () => {
                   <BarChart3 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   <h2 className="text-xl font-semibold dark:text-white">Weekly Summary</h2>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    ({formatApiDate(consumptionData.start_date, 'MMMM d')} - {formatApiDate(consumptionData.end_date, 'MMMM d, yyyy')})
+                    ({formatApiDate(startDate, 'MMMM d')} - {formatApiDate(endDate, 'MMMM d, yyyy')})
                   </span>
                 </div>
               </div>
@@ -273,10 +365,21 @@ const WeeklyConsumption = () => {
                     <div>
                       <p className="text-sm font-medium text-indigo-600 dark:text-indigo-300">Total Quantity Consumed</p>
                       <p className="mt-2 text-3xl font-bold text-indigo-900 dark:text-indigo-100">
-                        {totalConsumptionQuantity.toLocaleString()} units
+                        {safeNumber(consumptionData.total_consumption_quantity).toLocaleString()} units
                       </p>
                     </div>
                     <Package className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 border border-green-100 dark:border-green-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Consumption Cost</p>
+                      <p className="mt-2 text-3xl font-bold text-green-900 dark:text-green-300">
+                        ₹{safeNumber(consumptionData.total_consumption_amount).toLocaleString()}
+                      </p>
+                    </div>
+                    <TrendingDown className="h-8 w-8 text-green-600 dark:text-green-400" />
                   </div>
                 </div>
               </div>
@@ -292,7 +395,7 @@ const WeeklyConsumption = () => {
                     onChange={e => setSearch(e.target.value)}
                   />
                 </div>
-                {renderWeeklyBreakdown(consumptionData.daily_consumption, search, sort, setSort)}
+                {renderWeeklyBreakdown(consumptionData.consumption_summary, search, sort, setSort)}
               </div>
             </div>
           </div>
