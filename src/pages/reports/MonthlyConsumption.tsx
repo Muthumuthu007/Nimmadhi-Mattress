@@ -14,118 +14,42 @@ import { formatApiDate } from '../../utils/dateUtils';
 
 interface ConsumptionItem {
   item_id: string;
-  quantity: number;
-  cost_per_unit: number;
-  gst_percentage: number;
-  amount_without_tax: number;
-  gst_amount: number;
-  amount_with_tax: number;
+  total_quantity_consumed: number;
+  total_quantity_added: number;
+  total_added_cost: number;
+  suppliers?: string[];
 }
 
 type SubCategoryMap = { [subcategory: string]: ConsumptionItem[] };
 type CategoryMap = { [category: string]: SubCategoryMap };
-type DayMap = { [date: string]: CategoryMap };
+
+interface ReportPeriod {
+  start_date: string;
+  end_date: string;
+}
 
 interface MonthlyConsumptionData {
   month: string;
-  start_date: string;
-  end_date: string;
-  consumption_summary: DayMap;
+  report_date: string;
+  report_period: ReportPeriod;
+  stock_summary: CategoryMap;
   total_consumption_quantity: number;
   total_consumption_amount_without_tax: number;
   total_gst_amount: number;
   total_consumption_amount_with_tax: number;
-  _version?: string;
+  total_inward_quantity: number;
+  total_inward_amount: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const safeDate = (d: string) => { try { return formatApiDate(d + 'T00:00:00', 'MMMM d, yyyy'); } catch { return d; } };
 
 function safeArray<T>(val: unknown): T[] {
   return Array.isArray(val) ? val : [];
 }
 
-// ─── Day Accordion ───────────────────────────────────────────────────────────
-
-interface DayBlockProps {
-  date: string;
-  categories: CategoryMap;
-  search: string;
-}
-
-const DayBlock: React.FC<DayBlockProps> = ({ date, categories, search }) => {
-  const [open, setOpen] = useState(false);
-
-  // check if this day has any data at all
-  const catEntries = Object.entries(categories ?? {});
-  if (catEntries.length === 0) return null;
-
-  // compute day total (amount_with_tax)
-  let dayTotal = 0;
-  let dayQty = 0;
-  catEntries.forEach(([, subcats]) =>
-    Object.values(subcats).forEach(items =>
-      safeArray<ConsumptionItem>(items).forEach(item => {
-        dayTotal += item.amount_with_tax ?? 0;
-        dayQty += item.quantity ?? 0;
-      })
-    )
-  );
-
-  // filter: if search is active drop days that have no matching items
-  let hasMatch = !search;
-  if (search) {
-    catEntries.forEach(([, subcats]) =>
-      Object.values(subcats).forEach(items =>
-        safeArray<ConsumptionItem>(items).forEach(item => {
-          if (item.item_id.toLowerCase().includes(search.toLowerCase())) hasMatch = true;
-        })
-      )
-    );
-  }
-  if (!hasMatch) return null;
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-      {/* Day header */}
-      <button
-        type="button"
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
-        onClick={() => setOpen(v => !v)}
-      >
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
-            <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <div className="text-left">
-            <p className="font-bold text-gray-900 dark:text-white">{safeDate(date)}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {catEntries.length} categor{catEntries.length !== 1 ? 'ies' : 'y'} · Qty: {dayQty.toLocaleString('en-IN', { maximumFractionDigits: 3 })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold tracking-wider">Day Total (incl. GST)</p>
-            <p className="text-lg font-bold text-indigo-700 dark:text-indigo-400">{fmt(dayTotal)}</p>
-          </div>
-          {open ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
-        </div>
-      </button>
-
-      {/* Day body */}
-      {open && (
-        <div className="border-t border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-          {catEntries.map(([category, subcats]) => (
-            <CategoryBlock key={category} category={category} subcats={subcats} search={search} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+// ─── Category Accordion ───────────────────────────────────────────────────────
 
 // ─── Category Block ───────────────────────────────────────────────────────────
 
@@ -140,10 +64,10 @@ const CategoryBlock: React.FC<CategoryBlockProps> = ({ category, subcats, search
 
   let catTotal = 0;
   let catQty = 0;
-  Object.values(subcats).forEach(items =>
+  Object.values(subcats ?? {}).forEach(items =>
     safeArray<ConsumptionItem>(items).forEach(item => {
-      catTotal += item.amount_with_tax ?? 0;
-      catQty += item.quantity ?? 0;
+      catTotal += item.total_added_cost ?? 0;
+      catQty += item.total_quantity_consumed ?? 0;
     })
   );
 
@@ -169,7 +93,7 @@ const CategoryBlock: React.FC<CategoryBlockProps> = ({ category, subcats, search
 
       {open && (
         <div className="px-4 pb-4 space-y-4">
-          {Object.entries(subcats).map(([subcategory, items]) => (
+          {Object.entries(subcats ?? {}).map(([subcategory, items]) => (
             <SubCategoryTable
               key={subcategory}
               subcategory={subcategory}
@@ -185,7 +109,7 @@ const CategoryBlock: React.FC<CategoryBlockProps> = ({ category, subcats, search
 
 // ─── Sub-Category Table ───────────────────────────────────────────────────────
 
-type SortField = 'item_id' | 'quantity' | 'cost_per_unit' | 'amount_with_tax';
+type SortField = 'item_id' | 'total_quantity_consumed' | 'total_quantity_added' | 'total_added_cost';
 type SortDir = 'asc' | 'desc';
 
 interface SubCategoryTableProps {
@@ -197,6 +121,8 @@ interface SubCategoryTableProps {
 const SubCategoryTable: React.FC<SubCategoryTableProps> = ({ subcategory, items, search }) => {
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'item_id', dir: 'asc' });
 
+  const safeNum = (v: number | undefined | null) => typeof v === 'number' && !Number.isNaN(v) ? v : 0;
+
   const filtered = items
     .filter(item => !search || item.item_id.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
@@ -204,7 +130,7 @@ const SubCategoryTable: React.FC<SubCategoryTableProps> = ({ subcategory, items,
       const bv = b[sort.field];
       const cmp = typeof av === 'string'
         ? (av as string).toLowerCase().localeCompare((bv as string).toLowerCase())
-        : (av as number) - (bv as number);
+        : (safeNum(av as number)) - (safeNum(bv as number));
       return sort.dir === 'asc' ? cmp : -cmp;
     });
 
@@ -216,10 +142,9 @@ const SubCategoryTable: React.FC<SubCategoryTableProps> = ({ subcategory, items,
   const sortIcon = (field: SortField) =>
     sort.field === field ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
 
-  const totQty = filtered.reduce((s, i) => s + i.quantity, 0);
-  const totNoTax = filtered.reduce((s, i) => s + i.amount_without_tax, 0);
-  const totGst = filtered.reduce((s, i) => s + i.gst_amount, 0);
-  const totWithTax = filtered.reduce((s, i) => s + i.amount_with_tax, 0);
+  const totConsumed = filtered.reduce((s, i) => s + safeNum(i.total_quantity_consumed), 0);
+  const totAdded = filtered.reduce((s, i) => s + safeNum(i.total_quantity_added), 0);
+  const totCost = filtered.reduce((s, i) => s + safeNum(i.total_added_cost), 0);
 
   const isUnknown = subcategory === 'Unknown';
 
@@ -242,12 +167,10 @@ const SubCategoryTable: React.FC<SubCategoryTableProps> = ({ subcategory, items,
           <thead className="bg-gray-50 dark:bg-gray-700/50">
             <tr>
               <Th onClick={() => toggleSort('item_id')} label={`Material${sortIcon('item_id')}`} align="left" />
-              <Th onClick={() => toggleSort('quantity')} label={`Qty${sortIcon('quantity')}`} />
-              <Th onClick={() => toggleSort('cost_per_unit')} label={`Rate${sortIcon('cost_per_unit')}`} />
-              <Th label="GST%" />
-              <Th onClick={() => toggleSort('amount_with_tax')} label={`Amt (ex-tax)${sortIcon('amount_with_tax')}`} />
-              <Th label="GST Amt" />
-              <Th label="Total (incl.GST)" />
+              <Th onClick={() => toggleSort('total_quantity_consumed')} label={`Qty Consumed${sortIcon('total_quantity_consumed')}`} />
+              <Th onClick={() => toggleSort('total_quantity_added')} label={`Qty Added${sortIcon('total_quantity_added')}`} />
+              <Th onClick={() => toggleSort('total_added_cost')} label={`Added Cost${sortIcon('total_added_cost')}`} />
+              <Th label="Suppliers" align="left" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -255,17 +178,17 @@ const SubCategoryTable: React.FC<SubCategoryTableProps> = ({ subcategory, items,
               <tr key={i} className="hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 transition-colors">
                 <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-white whitespace-nowrap">{item.item_id}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                  {item.quantity.toLocaleString('en-IN', { maximumFractionDigits: 4 })}
+                  {safeNum(item.total_quantity_consumed).toLocaleString('en-IN', { maximumFractionDigits: 4 })} units
                 </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{fmt(item.cost_per_unit)}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums">
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${item.gst_percentage > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                    {item.gst_percentage}%
-                  </span>
+                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                  {safeNum(item.total_quantity_added).toLocaleString('en-IN', { maximumFractionDigits: 4 })} units
                 </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{fmt(item.amount_without_tax)}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-orange-600 dark:text-orange-400">{fmt(item.gst_amount)}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums font-bold text-indigo-700 dark:text-indigo-300">{fmt(item.amount_with_tax)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-bold text-indigo-700 dark:text-indigo-300">
+                  {fmt(safeNum(item.total_added_cost))}
+                </td>
+                <td className="px-4 py-2.5 text-left text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {item.suppliers && item.suppliers.length > 0 ? item.suppliers.join(', ') : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -273,13 +196,13 @@ const SubCategoryTable: React.FC<SubCategoryTableProps> = ({ subcategory, items,
             <tr>
               <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300 uppercase tracking-wider">Sub-total</td>
               <td className="px-4 py-2.5 text-right tabular-nums text-gray-800 dark:text-gray-200">
-                {totQty.toLocaleString('en-IN', { maximumFractionDigits: 4 })}
+                {totConsumed.toLocaleString('en-IN', { maximumFractionDigits: 4 })} units
               </td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-gray-800 dark:text-gray-200">
+                {totAdded.toLocaleString('en-IN', { maximumFractionDigits: 4 })} units
+              </td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-indigo-700 dark:text-indigo-400 font-bold">{fmt(totCost)}</td>
               <td />
-              <td />
-              <td className="px-4 py-2.5 text-right tabular-nums text-gray-800 dark:text-gray-200">{fmt(totNoTax)}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-orange-600 dark:text-orange-400">{fmt(totGst)}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-indigo-700 dark:text-indigo-400 font-bold">{fmt(totWithTax)}</td>
             </tr>
           </tfoot>
         </table>
@@ -328,42 +251,43 @@ const MonthlyConsumption = () => {
     if (!data) return;
     setIsDownloading(true);
     try {
+      const period = data.report_period;
       const header = [
-        'Date', 'Category', 'Sub-Category', 'Material',
-        'Quantity', 'Rate (₹)', 'GST%', 'Amt (ex-tax ₹)', 'GST Amt (₹)', 'Total incl.GST (₹)',
+        'Category', 'Sub-Category', 'Material',
+        'Qty Consumed', 'Qty Added', 'Added Cost (₹)', 'Suppliers',
       ];
       const rows: (string | number)[][] = [header];
 
-      Object.entries(data.consumption_summary).forEach(([date, categories]) => {
-        Object.entries(categories ?? {}).forEach(([category, subcats]) => {
-          Object.entries(subcats ?? {}).forEach(([subcategory, items]) => {
-            safeArray<ConsumptionItem>(items).forEach(item => {
-              rows.push([
-                date, category, subcategory, item.item_id,
-                item.quantity, item.cost_per_unit, item.gst_percentage,
-                item.amount_without_tax, item.gst_amount, item.amount_with_tax,
-              ]);
-            });
+      Object.entries(data.stock_summary ?? {}).forEach(([category, subcats]) => {
+        Object.entries(subcats ?? {}).forEach(([subcategory, items]) => {
+          safeArray<ConsumptionItem>(items).forEach(item => {
+            rows.push([
+              category, subcategory, item.item_id,
+              item.total_quantity_consumed ?? 0,
+              item.total_quantity_added ?? 0,
+              item.total_added_cost ?? 0,
+              (item.suppliers ?? []).join('; '),
+            ]);
           });
         });
       });
 
       rows.push([]);
-      rows.push(['', '', '', 'GRAND TOTAL',
-        data.total_consumption_quantity, '', '',
-        data.total_consumption_amount_without_tax,
-        data.total_gst_amount,
-        data.total_consumption_amount_with_tax,
+      rows.push(['', '', 'GRAND TOTAL',
+        data.total_consumption_quantity,
+        '',
+        data.total_inward_amount,
       ]);
 
       const ws = XLSX.utils.aoa_to_sheet(rows);
       ws['!cols'] = [
-        { wch: 14 }, { wch: 24 }, { wch: 26 }, { wch: 40 },
-        { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 20 },
+        { wch: 24 }, { wch: 26 }, { wch: 40 },
+        { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 30 },
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Monthly Consumption');
-      XLSX.writeFile(wb, `monthly-consumption-${selectedMonth}.xlsx`);
+      const periodStr = period ? `${period.start_date}-to-${period.end_date}` : selectedMonth;
+      XLSX.writeFile(wb, `monthly-consumption-${periodStr}.xlsx`);
     } catch {
       setError('Failed to generate download');
     } finally {
@@ -371,10 +295,11 @@ const MonthlyConsumption = () => {
     }
   };
 
-  // Count active days (with data)
-  const activeDays = data
-    ? Object.values(data.consumption_summary).filter(cats => Object.keys(cats).length > 0).length
-    : 0;
+  // Derive period label from API response
+  const period = data?.report_period;
+  const periodLabel = period
+    ? `${formatApiDate(period.start_date + 'T00:00:00', 'MMM d')} – ${formatApiDate(period.end_date + 'T00:00:00', 'MMM d, yyyy')}`
+    : selectedMonth;
 
   return (
     <div className="space-y-6">
@@ -445,16 +370,9 @@ const MonthlyConsumption = () => {
           {/* Summary stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatCard
-              icon={<Calendar className="h-6 w-6 text-indigo-500" />}
-              bg="bg-indigo-50 dark:bg-indigo-900/20"
-              label="Active Days"
-              value={String(activeDays)}
-              sub={`of ${Object.keys(data.consumption_summary).length} days in period`}
-            />
-            <StatCard
               icon={<Package className="h-6 w-6 text-violet-500" />}
               bg="bg-violet-50 dark:bg-violet-900/20"
-              label="Total Quantity"
+              label="Total Quantity Consumed"
               value={data.total_consumption_quantity.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               sub="units consumed"
             />
@@ -473,6 +391,13 @@ const MonthlyConsumption = () => {
               highlight
               sub="grand total"
             />
+            <StatCard
+              icon={<Package className="h-6 w-6 text-indigo-500" />}
+              bg="bg-indigo-50 dark:bg-indigo-900/20"
+              label="Total Inward Amount"
+              value={fmt(data.total_inward_amount ?? 0)}
+              sub={`Qty: ${(data.total_inward_quantity ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} units`}
+            />
           </div>
 
           {/* Breakdown section */}
@@ -481,11 +406,9 @@ const MonthlyConsumption = () => {
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Daily Breakdown
+                  Consumption Breakdown
                 </h2>
-                <span className="text-sm text-gray-400 dark:text-gray-500">
-                  ({formatApiDate(data.start_date + 'T00:00:00', 'MMM d')} – {formatApiDate(data.end_date + 'T00:00:00', 'MMM d, yyyy')})
-                </span>
+                <span className="text-sm text-gray-400 dark:text-gray-500">({periodLabel})</span>
               </div>
               {/* Search */}
               <div className="relative">
@@ -501,8 +424,8 @@ const MonthlyConsumption = () => {
             </div>
 
             <div className="p-4 space-y-3">
-              {Object.entries(data.consumption_summary).map(([date, categories]) => (
-                <DayBlock key={date} date={date} categories={categories ?? {}} search={search} />
+              {Object.entries(data.stock_summary ?? {}).map(([category, subcats]) => (
+                <CategoryBlock key={category} category={category} subcats={subcats ?? {}} search={search} />
               ))}
             </div>
           </div>
