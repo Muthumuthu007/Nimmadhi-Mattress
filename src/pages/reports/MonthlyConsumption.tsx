@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Download, Loader2, RefreshCw, ArrowLeft,
   AlertCircle, Package, FileText, BarChart3, ChevronDown,
-  ChevronUp, Search, TrendingDown, Receipt, Tag
+  ChevronUp, Search, TrendingDown, TrendingUp, Tag
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { axiosInstance } from '../../utils/axiosInstance';
@@ -34,9 +34,7 @@ interface MonthlyConsumptionData {
   report_period: ReportPeriod;
   stock_summary: CategoryMap;
   total_consumption_quantity: number;
-  total_consumption_amount_without_tax: number;
-  total_gst_amount: number;
-  total_consumption_amount_with_tax: number;
+  total_consumption_amount: number;
   total_inward_quantity: number;
   total_inward_amount: number;
 }
@@ -369,35 +367,59 @@ const MonthlyConsumption = () => {
 
           {/* Summary stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard
-              icon={<Package className="h-6 w-6 text-violet-500" />}
-              bg="bg-violet-50 dark:bg-violet-900/20"
-              label="Total Quantity Consumed"
-              value={data.total_consumption_quantity.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-              sub="units consumed"
-            />
-            <StatCard
-              icon={<TrendingDown className="h-6 w-6 text-blue-500" />}
-              bg="bg-blue-50 dark:bg-blue-900/20"
-              label="Amount (excl. GST)"
-              value={fmt(data.total_consumption_amount_without_tax)}
-              sub={`GST: ${fmt(data.total_gst_amount)}`}
-            />
-            <StatCard
-              icon={<Receipt className="h-6 w-6 text-green-500" />}
-              bg="bg-green-50 dark:bg-green-900/20"
-              label="Total (incl. GST)"
-              value={fmt(data.total_consumption_amount_with_tax)}
-              highlight
-              sub="grand total"
-            />
-            <StatCard
-              icon={<Package className="h-6 w-6 text-indigo-500" />}
-              bg="bg-indigo-50 dark:bg-indigo-900/20"
-              label="Total Inward Amount"
-              value={fmt(data.total_inward_amount ?? 0)}
-              sub={`Qty: ${(data.total_inward_quantity ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} units`}
-            />
+            {/* Card 1 – Total Quantity Consumed */}
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-6 border border-indigo-100 dark:border-indigo-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-indigo-600 dark:text-indigo-300">Total Qty Consumed</p>
+                  <p className="mt-2 text-3xl font-bold text-indigo-900 dark:text-indigo-100">
+                    {(data.total_consumption_quantity ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1">units</p>
+                </div>
+                <Package className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+              </div>
+            </div>
+
+            {/* Card 2 – Total Consumption Cost */}
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 border border-green-100 dark:border-green-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Consumption Cost</p>
+                  <p className="mt-2 text-3xl font-bold text-green-900 dark:text-green-300">
+                    {fmt(data.total_consumption_amount ?? 0)}
+                  </p>
+                </div>
+                <TrendingDown className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+
+            {/* Card 3 – Total Qty Inward */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-6 border border-amber-100 dark:border-amber-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Qty Inward</p>
+                  <p className="mt-2 text-3xl font-bold text-amber-900 dark:text-amber-200">
+                    {(data.total_inward_quantity ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-amber-500 dark:text-amber-400 mt-1">units</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+
+            {/* Card 4 – Total Inward Amount */}
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6 border border-purple-100 dark:border-purple-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Total Inward Amount</p>
+                  <p className="mt-2 text-3xl font-bold text-purple-900 dark:text-purple-200">
+                    {fmt(data.total_inward_amount ?? 0)}
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
           </div>
 
           {/* Breakdown section */}
