@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate, toTimestamp } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 const DailyReport = () => {
   const navigate = useNavigate();
@@ -664,6 +665,7 @@ const DailyReport = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };

@@ -39,7 +39,7 @@ const GrnMonthly = () => {
     try {
       const response = await getMonthlyGrnReport(selectedMonth);
       setData(response);
-      setRecords(Array.isArray(response?.data) ? response.data : []);
+      setRecords(Array.isArray(response?.grns) ? response.grns : []);
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch monthly GRN records');
       setData(null);
@@ -198,25 +198,32 @@ const GrnMonthly = () => {
           </div>
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col justify-center items-center">
             <p className="text-gray-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Quantity</p>
-            <p className="text-4xl font-bold text-gray-900">{(data.total_quantity || 0).toLocaleString()}</p>
+            <p className="text-4xl font-bold text-gray-900">{(data.total_received_quantity ?? 0).toLocaleString()}</p>
           </div>
         </div>
       )}
 
-      {!isLoading && data?.supplier_summary && Object.keys(data.supplier_summary).length > 0 && (
+      {!isLoading && data?.supplier_summary && Array.isArray(data.supplier_summary) && data.supplier_summary.length > 0 && (
         <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-bold text-gray-800">Top Suppliers Breakdown</h3>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Object.entries(data.supplier_summary)
-              .sort(([, a], [, b]) => (b as any).total_amount - (a as any).total_amount)
+            {data.supplier_summary
+              .slice()
+              .sort((a: any, b: any) => b.total_amount - a.total_amount)
               .slice(0, 12)
-              .map(([supplier, details]: any) => (
-                <div key={supplier} className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors">
-                  <p className="font-bold text-gray-800 mb-2 truncate" title={supplier}>{supplier}</p>
+              .map((s: any) => (
+                <div key={s.supplier_name} className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                  <p className="font-bold text-gray-800 mb-2 truncate" title={s.supplier_name}>{s.supplier_name}</p>
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>GRN Count:</span><span className="font-semibold">{s.grn_count}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Received Qty:</span><span className="font-semibold">{s.received_quantity}</span>
+                  </div>
                   <div className="flex justify-between text-sm text-gray-600">
-                    <span>Amount:</span><span className="font-semibold text-blue-700">₹{details.total_amount.toLocaleString()}</span>
+                    <span>Amount:</span><span className="font-semibold text-blue-700">₹{(s.total_amount || 0).toLocaleString()}</span>
                   </div>
                 </div>
               ))}

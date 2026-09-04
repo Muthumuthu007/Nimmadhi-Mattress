@@ -4,7 +4,9 @@ import { Calendar, Download, Loader2, RefreshCw, ArrowLeft, AlertCircle, FileTex
 
 import { axiosInstance } from '../../utils/axiosInstance';
 import * as XLSX from 'xlsx';
-import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';import { formatApiDate } from '../../utils/dateUtils';
+import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 
 const WeeklyInward = () => {
@@ -197,6 +199,7 @@ const WeeklyInward = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };

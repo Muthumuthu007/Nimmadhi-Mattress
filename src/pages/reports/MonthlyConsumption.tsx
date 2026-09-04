@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import { axiosInstance } from '../../utils/axiosInstance';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -463,6 +464,7 @@ const MonthlyConsumption = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };

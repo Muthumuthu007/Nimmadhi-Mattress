@@ -40,7 +40,7 @@ const GrnDaily = () => {
     try {
       const response = await getDailyGrnReport(selectedDate);
       setData(response);
-      setRecords(Array.isArray(response?.data) ? response.data : []);
+      setRecords(Array.isArray(response?.grns) ? response.grns : []);
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch daily GRN records');
       setData(null);
@@ -198,7 +198,7 @@ const GrnDaily = () => {
           </div>
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col justify-center items-center">
             <p className="text-gray-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Quantity</p>
-            <p className="text-4xl font-bold text-gray-900">{(data.total_quantity || records.reduce((s, r)=> s + (r.receivedQuantity || 0), 0)).toLocaleString()}</p>
+            <p className="text-4xl font-bold text-gray-900">{(data.total_received_quantity ?? records.reduce((s: number, r: any) => s + (r.receivedQuantity || 0), 0)).toLocaleString()}</p>
           </div>
         </div>
       )}

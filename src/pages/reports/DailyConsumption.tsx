@@ -8,6 +8,7 @@ import { axiosInstance } from '../../utils/axiosInstance';
 import { useAuth } from '../../contexts/AuthContext';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 // Types for the current API response structure.
 // Note: the backend key is "stock_summary" (previously "consumption_summary"),
@@ -396,6 +397,7 @@ const DailyConsumption = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };

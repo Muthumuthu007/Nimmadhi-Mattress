@@ -4,7 +4,9 @@ import { axiosInstance } from '../../utils/axiosInstance';
 import { FileSpreadsheet, Loader2, ArrowLeft, Download } from 'lucide-react';
 import { format, parse, getDaysInMonth } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';import { formatApiDate } from '../../utils/dateUtils';
+import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
+import { formatApiDate } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 
 interface InwardItem {
@@ -246,6 +248,7 @@ const MonthlyInwardGrid = () => {
           </div>
         )}
       </div>
+      <ScrollToTopButton />
     </div>
   );
 };

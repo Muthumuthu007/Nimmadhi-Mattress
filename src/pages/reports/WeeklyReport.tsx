@@ -10,6 +10,7 @@ import { parse } from 'date-fns';
 
 import { useAuth } from '../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';import { formatApiDate, toTimestamp } from '../../utils/dateUtils';
 
 
@@ -646,6 +647,7 @@ const WeeklyReport = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };

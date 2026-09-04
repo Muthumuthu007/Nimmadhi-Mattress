@@ -7,6 +7,7 @@ import {
 import { axiosInstance } from '../../utils/axiosInstance';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 // Types for the updated API response structure.
 // stock_summary is now a flat category -> subcategory -> items hierarchy
@@ -423,6 +424,7 @@ const WeeklyConsumption = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };

@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { ReportSkeleton } from '../../components/skeletons/ReportSkeleton';
 import { formatApiDate } from '../../utils/dateUtils';
+import ScrollToTopButton from '../../components/ScrollToTopButton';
 
 
 
@@ -466,6 +467,7 @@ const MonthlyReport = () => {
           </p>
         </div>
       )}
+      <ScrollToTopButton />
     </div>
   );
 };
