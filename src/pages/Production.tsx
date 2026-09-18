@@ -3,9 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { ProductionForm } from '../components/ProductionForm';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
 import { AlterMaterialsModal } from '../components/AlterMaterialsModal';
+import { MoveProductModal } from '../components/MoveProductModal';
 import { useProducts } from '../contexts/ProductContext';
 import { useInventory } from '../hooks/useInventory';
-import { Package2, RefreshCw, Loader2, Search, Trash2, AlertCircle, ArrowUpDown, Settings, Download, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ArrowUp, Layers, FolderPlus } from 'lucide-react';
+import { Package2, RefreshCw, Loader2, Search, Trash2, AlertCircle, ArrowUpDown, Settings, Download, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ArrowUp, Layers, FolderPlus, MoveRight } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { productionApi, productGroupApi } from '../utils/productionApi';
@@ -104,6 +105,9 @@ interface ProductCardProps {
   onToggleExpand: (productId: string) => void;
   onAlterMaterials: (product: Product) => void;
   onDeleteClick: (productId: string) => void;
+  onMoveClick: (product: Product, sourceGroupId: string | null, sourceGroupName: string) => void;
+  currentGroupId: string | null;
+  currentGroupName: string;
 }
 
 // Extracted + memoized so a product card only re-renders when its own
@@ -117,6 +121,9 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   onToggleExpand,
   onAlterMaterials,
   onDeleteClick,
+  onMoveClick,
+  currentGroupId,
+  currentGroupName,
 }) => {
   return (
     <div
@@ -175,6 +182,13 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             title="Alter Materials"
           >
             <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
+          <button
+            onClick={() => onMoveClick(product, currentGroupId, currentGroupName)}
+            className="flex-shrink-0 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 p-2 sm:p-3 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-200 shadow-sm hover:shadow-md"
+            title="Move to another group"
+          >
+            <MoveRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <button
             onClick={() => onDeleteClick(product.id)}
@@ -299,6 +313,14 @@ const Production = () => {
   const [showCreateGroupForm, setShowCreateGroupForm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string; productCount: number } | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+
+  // Move Product modal state
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [productToMove, setProductToMove] = useState<{
+    product: Product;
+    sourceGroupId: string | null;
+    sourceGroupName: string;
+  } | null>(null);
 
   // Tracks which group sections the user has opened (by group_id or
   // '__ungrouped__'). Default: empty set, so every group starts collapsed
@@ -489,6 +511,22 @@ const Production = () => {
     setSelectedProductForAlter(product);
     setShowAlterMaterialsModal(true);
   }, []);
+
+  const handleMoveClick = useCallback((
+    product: Product,
+    sourceGroupId: string | null,
+    sourceGroupName: string
+  ) => {
+    setProductToMove({ product, sourceGroupId, sourceGroupName });
+    setShowMoveModal(true);
+  }, []);
+
+  const handleMoveSuccess = useCallback(async () => {
+    setShowMoveModal(false);
+    setProductToMove(null);
+    setSuccessMessage(`Product moved successfully!`);
+    await fetchProductionList();
+  }, [fetchProductionList]);
 
   const handleToggleExpand = useCallback((productId: string) => {
     setExpandedProductId(prev => (prev === productId ? null : productId));
@@ -1081,6 +1119,9 @@ const Production = () => {
                                 onToggleExpand={handleToggleExpand}
                                 onAlterMaterials={handleAlterMaterials}
                                 onDeleteClick={handleDeleteClick}
+                                onMoveClick={handleMoveClick}
+                                currentGroupId={section.groupId}
+                                currentGroupName={section.groupName}
                               />
                             ))}
                           </div>
@@ -1159,6 +1200,20 @@ const Production = () => {
         <NewProductGroupForm
           onClose={() => setShowCreateGroupForm(false)}
           onSuccess={handleCreateGroupSuccess}
+        />
+      )}
+
+      {productToMove && (
+        <MoveProductModal
+          product={productToMove.product}
+          sourceGroupId={productToMove.sourceGroupId}
+          sourceGroupName={productToMove.sourceGroupName}
+          isOpen={showMoveModal}
+          onClose={() => {
+            setShowMoveModal(false);
+            setProductToMove(null);
+          }}
+          onSuccess={handleMoveSuccess}
         />
       )}
 

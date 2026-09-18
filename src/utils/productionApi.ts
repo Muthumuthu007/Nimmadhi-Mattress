@@ -209,10 +209,11 @@ export const productGroupApi = {
         });
     },
 
-    moveProduct: (productId: string, groupId: string) => {
+    moveProduct: (productId: string, targetGroupId: string, sourceGroupId: string | null) => {
         return apiClient.post<MoveProductResponse>('/api/production/groups/move-product/', {
             product_id: productId,
-            group_id: groupId
+            target_group_id: targetGroupId,
+            source_group_id: sourceGroupId,
         });
     },
 
