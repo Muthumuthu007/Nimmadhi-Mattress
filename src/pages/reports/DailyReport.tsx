@@ -648,12 +648,17 @@ const DailyReport = () => {
                 {isDownloading ? 'Downloading...' : 'Download Excel'}
               </button>
             </div>
-            {Object.entries(reportData.transactions).map(([date, txBlock]) => (
-              <div key={date} className="mb-6">
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">{date}</div>
-                {renderActivities((txBlock as { operations: any[] }).operations)}
-              </div>
-            ))}
+            {reportData.transactions && Object.entries(reportData.transactions).length > 0
+              ? Object.entries(reportData.transactions).map(([date, txBlock]) => (
+                  <div key={date} className="mb-6">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">{date}</div>
+                    {renderActivities(((txBlock as any)?.operations) || [])}
+                  </div>
+                ))
+              : (
+                  <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-8">No activities for this date.</div>
+                )
+            }
           </div>
         </div>
       ) : !isLoading && (
