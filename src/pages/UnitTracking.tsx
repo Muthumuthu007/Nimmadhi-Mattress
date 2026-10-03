@@ -45,6 +45,7 @@ export default function UnitTracking() {
   const [notice, setNotice] = useState('');
   const generateKey = useRef<{ fingerprint: string; key: string } | null>(null);
   const dispatchKeys = useRef(new Map<string, string>());
+  const labelRefs = useRef(new Map<string, HTMLElement>());
 
   const selectedProduct = useMemo(
     () => products.find((product) => product.product_id === productId),
@@ -114,6 +115,28 @@ export default function UnitTracking() {
     catch { setError('Could not copy automatically. Select and copy the unit ID manually.'); }
   };
 
+  const printLabel = (id: string) => {
+    const label = labelRefs.current.get(id);
+    if (!label) {
+      setError('That QR label is not ready to print. Please generate it again.');
+      return;
+    }
+
+    // Use a dedicated print document so the browser prints one label only,
+    // rather than the full dashboard or the whole generated batch.
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=420,height=520');
+    if (!printWindow) {
+      setError('Your browser blocked the print window. Allow pop-ups for this site and try again.');
+      return;
+    }
+    printWindow.document.write(`<!doctype html><html><head><title>QR label ${id}</title><style>
+      @page { margin: 10mm; } body { margin: 0; font-family: Arial, sans-serif; color: #111827; }
+      .label { width: 76mm; min-height: 76mm; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 5mm; padding: 6mm; text-align: center; }
+      svg { display: block; margin: 0 auto; width: 46mm; height: 46mm; } .product { margin-top: 4mm; font-size: 11pt; font-weight: 700; } .unit { margin-top: 3mm; font-size: 7pt; overflow-wrap: anywhere; }
+    </style></head><body><div class="label">${label.innerHTML}</div><script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };</script></body></html>`);
+    printWindow.document.close();
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       <section className="rounded-2xl bg-gradient-to-r from-indigo-700 to-violet-700 p-6 text-white shadow-lg">
@@ -143,7 +166,7 @@ export default function UnitTracking() {
         </section>
       </div>
 
-      {generated && <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"><div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold text-lg text-gray-900 dark:text-white">Generated labels</h2><p className="text-sm text-gray-500">Batch {generated.batch_id} · assign the outlet later when dispatching</p></div><button onClick={() => window.print()} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700">Print labels</button></div><div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{generated.units.map((unit) => <article key={unit.unit_id} className="rounded-xl border p-4 text-center dark:border-gray-700"><QRCodeSVG value={JSON.stringify({ unit_id: unit.unit_id })} size={148} includeMargin /><p className="mt-3 break-all font-mono text-xs">{unit.unit_id}</p><p className="mt-1 text-sm font-medium">{generated.product_name}</p><button onClick={() => { setUnitId(unit.unit_id); copy(unit.unit_id); }} className="mt-3 inline-flex items-center gap-1 text-sm text-indigo-600"><Clipboard className="w-4 h-4" />Copy unit ID</button></article>)}</div></section>}
+      {generated && <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"><div><h2 className="font-semibold text-lg text-gray-900 dark:text-white">Generated labels</h2><p className="text-sm text-gray-500">Batch {generated.batch_id} · assign the outlet later when dispatching. Use Print on a label to print only that QR.</p></div><div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{generated.units.map((unit) => <article key={unit.unit_id} className="rounded-xl border p-4 text-center dark:border-gray-700"><div ref={(node) => { if (node) labelRefs.current.set(unit.unit_id, node); else labelRefs.current.delete(unit.unit_id); }}><QRCodeSVG value={JSON.stringify({ unit_id: unit.unit_id })} size={148} includeMargin /><p className="product mt-3 text-sm font-medium">{generated.product_name}</p><p className="unit mt-1 break-all font-mono text-xs">{unit.unit_id}</p></div><div className="mt-3 flex justify-center gap-3"><button onClick={() => printLabel(unit.unit_id)} className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700">Print this QR</button><button onClick={() => { setUnitId(unit.unit_id); copy(unit.unit_id); }} className="inline-flex items-center gap-1 text-sm text-indigo-600"><Clipboard className="w-4 h-4" />Copy unit ID</button></div></article>)}</div></section>}
 
       {tracking && <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"><h2 className="font-semibold text-lg text-gray-900 dark:text-white">Movement history</h2>{movements.length ? <ol className="mt-4 space-y-3">{movements.map((movement, index) => <li key={movement.movement_id || index} className="flex gap-3 border-l-2 border-indigo-300 pl-4 text-sm"><CheckCircle2 className="w-4 h-4 mt-0.5 text-indigo-600 shrink-0" /><div><strong>{movement.event_type || movement.movement_status_after}</strong><span className="ml-2 text-gray-500">{movement.timestamp ? new Date(movement.timestamp).toLocaleString() : ''}</span><p className="text-gray-500">{movement.from_location || '-'} → {movement.to_location || '-'}</p></div></li>)}</ol> : <p className="mt-4 text-sm text-gray-500">No movement events have been recorded for this unit yet.</p>}</section>}
     </main>
