@@ -40,10 +40,10 @@ export const unitApi = {
     apiClient.get<{ unit_id: string; product_name: string; unit_sequence?: number; movement_status: UnitStatus; qr_payload: string }>(
       `/api/production/units/${encodeURIComponent(unitId)}/qr/`,
     ),
-  dispatch: (unitId: string, destinationId: string, idempotencyKey: string) =>
+  dispatch: (unitId: string, idempotencyKey: string) =>
     apiClient.post(
       '/api/production/units/scan/dispatch/',
-      { unit_id: unitId, destination_id: destinationId },
+      { unit_id: unitId },
       withKey(idempotencyKey),
     ),
   tracking: (unitId: string) =>

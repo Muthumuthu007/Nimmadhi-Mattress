@@ -34,7 +34,6 @@ export default function UnitTracking() {
   const [products, setProducts] = useState<ProductionProduct[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [productId, setProductId] = useState('');
-  const [dispatchDestinationId, setDispatchDestinationId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [generated, setGenerated] = useState<UnitGenerationResponse | null>(null);
   const [unitId, setUnitId] = useState('');
@@ -96,15 +95,13 @@ export default function UnitTracking() {
 
   const dispatch = async () => {
     const value = unitId.trim();
-    const destination = dispatchDestinationId.trim();
     if (!value) { setError('Enter or scan a READY FOR DISPATCH unit ID first.'); return; }
-    if (!destination) { setError('Enter the destination outlet ID before dispatching this unit.'); return; }
     setLoading('dispatch'); setError(''); setNotice('');
     const key = dispatchKeys.current.get(value) || newIdempotencyKey('dispatch-unit');
     dispatchKeys.current.set(value, key);
     try {
-      const response = await unitApi.dispatch(value, destination, key);
-      setNotice(`Unit ${response.data.unit_id} is now in transit to ${response.data.destination_id}.`);
+      const response = await unitApi.dispatch(value, key);
+      setNotice(`Unit ${response.data.unit_id} is now in transit and ready for outlet receipt.`);
       await refreshTracking(value);
     } catch (err) { setError(handleApiError(err)); }
     finally { setLoading(null); }
@@ -140,7 +137,7 @@ export default function UnitTracking() {
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       <section className="rounded-2xl bg-gradient-to-r from-indigo-700 to-violet-700 p-6 text-white shadow-lg">
-        <div className="flex gap-4 items-start"><QrCode className="w-9 h-9 shrink-0" /><div><h1 className="text-2xl font-bold">QR unit movement</h1><p className="mt-1 text-indigo-100">Generate and print factory QR labels first. Select the destination only when a labelled unit is dispatched.</p></div></div>
+        <div className="flex gap-4 items-start"><QrCode className="w-9 h-9 shrink-0" /><div><h1 className="text-2xl font-bold">QR unit movement</h1><p className="mt-1 text-indigo-100">Generate and print factory QR labels first. Scan a label here to confirm it is in transit; the receiving employee’s outlet is recorded when it arrives.</p></div></div>
       </section>
       {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{notice}</div>}
@@ -158,9 +155,8 @@ export default function UnitTracking() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <h2 className="font-semibold text-lg text-gray-900 dark:text-white">2. Scan to dispatch and track</h2>
-          <p className="mt-1 text-sm text-gray-500">Use a USB/phone scanner or paste the unit ID from its QR label. Choose the outlet only when dispatching.</p>
+          <p className="mt-1 text-sm text-gray-500">Use a USB/phone scanner or paste the unit ID from its QR label, then confirm dispatch. The employee who receives it records their linked outlet.</p>
           <label className="mt-5 block text-sm font-medium">Unit ID<input value={unitId} onChange={(e) => setUnitId(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && refreshTracking()} placeholder="Scan or enter unit ID" className="mt-1 w-full rounded-lg border bg-transparent px-3 py-2" /></label>
-          <label className="mt-4 block text-sm font-medium">Destination outlet ID (required to dispatch)<input value={dispatchDestinationId} onChange={(e) => setDispatchDestinationId(e.target.value)} placeholder="e.g. OUT001 or NIM001" className="mt-1 w-full rounded-lg border bg-transparent px-3 py-2" /></label>
           <div className="mt-4 flex flex-wrap gap-3"><button onClick={() => refreshTracking()} disabled={loading !== null} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"><Search className="w-4 h-4" />Track unit</button><button onClick={dispatch} disabled={loading !== null} className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-gray-950 disabled:opacity-50"><Truck className="w-4 h-4" />Dispatch unit</button></div>
           {tracking && <div className="mt-5 rounded-xl border border-gray-200 p-4 dark:border-gray-700 space-y-2"><div className="flex flex-wrap justify-between gap-2"><strong>{tracking.product_name || tracking.product_id}</strong><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass[tracking.movement_status] || 'bg-gray-100 text-gray-700'}`}>{labelForStatus(tracking.movement_status)}</span></div><div className="grid grid-cols-2 gap-3 text-sm"><p><span className="text-gray-500">Destination</span><br />{tracking.destination_id || '-'}</p><p><span className="text-gray-500">Unit sequence</span><br />{tracking.unit_sequence ?? '-'}</p></div></div>}
         </section>
