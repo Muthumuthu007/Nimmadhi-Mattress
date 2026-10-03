@@ -35,6 +35,7 @@ import WeeklyInward from '../pages/reports/WeeklyInward';
 import MonthlyInward from '../pages/reports/MonthlyInward';
 import MonthlyInwardGrid from '../pages/reports/MonthlyInwardGrid';
 import MonthlyOutwardGrid from '../pages/reports/MonthlyOutwardGrid';
+import UnitTracking from '../pages/UnitTracking';
 
 export const router = createBrowserRouter([
   {
@@ -130,6 +131,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission="production">
             <Production />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: 'unit-tracking',
+        element: (
+          <PermissionGuard permission="production">
+            <UnitTracking />
           </PermissionGuard>
         ),
       },
