@@ -20,6 +20,19 @@ export interface ProductionRecord {
 
 import { ProductionResponse } from '../types/index';
 
+export interface CreditNoteReversalResponse {
+    message: string;
+    product_id: string;
+    product_name: string;
+    quantity_reversed: number;
+    raw_materials_restored: Array<{
+        material_id: string;
+        material_name: string;
+        quantity_restored: number | string;
+    }>;
+    reversed_at: string;
+}
+
 // Production API wrappers
 export const productionApi = {
     create: (data: Omit<ProductionRecord, 'id'>) => {
@@ -66,6 +79,14 @@ export const productionApi = {
 
     undo: (data: { push_id: string; username: string }) => {
         return apiClient.post<ProductionResponse>('/api/production/undo/', data);
+    },
+
+    creditNoteReversal: (productId: string, idempotencyKey: string) => {
+        return apiClient.post<CreditNoteReversalResponse>(
+            '/api/production/credit-note/reversal/',
+            { product_id: productId },
+            { headers: { 'Idempotency-Key': idempotencyKey } },
+        );
     },
 
     dailyReport: (date: string) => {

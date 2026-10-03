@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, FileText, Shield, Menu, X, Package,
-  LayoutDashboard, PackageSearch, Factory, Droplet, ClipboardList, QrCode
+  LayoutDashboard, PackageSearch, Factory, Droplet, ClipboardList, QrCode, FileMinus2
 } from 'lucide-react';
 import logo from '../assets/logo.png';
 
@@ -64,6 +64,7 @@ export const Header = () => {
     { to: '/dashboard/inventory',  label: 'Inventory',  icon: <PackageSearch className="h-4 w-4" />, visible: hasPermission('inventory') },
     { to: '/dashboard/production', label: 'Production', icon: <Factory className="h-4 w-4" />, visible: hasPermission('production') },
     { to: '/dashboard/unit-tracking', label: 'QR Units', icon: <QrCode className="h-4 w-4" />, visible: hasPermission('production') },
+    { to: '/dashboard/credit-note', label: 'Credit Note', icon: <FileMinus2 className="h-4 w-4" />, visible: hasPermission('production') },
     { to: '/dashboard/dispatched', label: 'Dispatched', icon: <Package className="h-4 w-4" />, visible: isDispatchedPageVisible && hasPermission('dispatch') },
     { to: '/dashboard/reports',    label: 'Reports',    icon: <FileText className="h-4 w-4" />, visible: hasPermission('reports') },
   ];

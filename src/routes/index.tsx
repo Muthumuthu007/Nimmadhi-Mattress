@@ -36,6 +36,7 @@ import MonthlyInward from '../pages/reports/MonthlyInward';
 import MonthlyInwardGrid from '../pages/reports/MonthlyInwardGrid';
 import MonthlyOutwardGrid from '../pages/reports/MonthlyOutwardGrid';
 import UnitTracking from '../pages/UnitTracking';
+import CreditNote from '../pages/CreditNote';
 
 export const router = createBrowserRouter([
   {
@@ -139,6 +140,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission="production">
             <UnitTracking />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: 'credit-note',
+        element: (
+          <PermissionGuard permission="production">
+            <CreditNote />
           </PermissionGuard>
         ),
       },
