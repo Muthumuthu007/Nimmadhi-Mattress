@@ -15,7 +15,7 @@ export interface UnitGenerationResponse {
   product_id: string;
   product_name: string;
   quantity: number;
-  destination_id: string;
+  destination_id: string | null;
   generated_at: string;
   units: ProductUnit[];
 }
@@ -26,10 +26,10 @@ const withKey = (idempotencyKey: string) => ({
 
 /** APIs for a single physical, QR-labelled product unit. */
 export const unitApi = {
-  generate: (productId: string, quantity: number, destinationId: string, idempotencyKey: string) =>
+  generate: (productId: string, quantity: number, idempotencyKey: string) =>
     apiClient.post<UnitGenerationResponse>(
       `/api/production/${encodeURIComponent(productId)}/units/generate/`,
-      { quantity, destination_id: destinationId },
+      { quantity },
       withKey(idempotencyKey),
     ),
   listForProduct: (productId: string) =>
@@ -40,10 +40,10 @@ export const unitApi = {
     apiClient.get<{ unit_id: string; product_name: string; unit_sequence?: number; movement_status: UnitStatus; qr_payload: string }>(
       `/api/production/units/${encodeURIComponent(unitId)}/qr/`,
     ),
-  dispatch: (unitId: string, idempotencyKey: string) =>
+  dispatch: (unitId: string, destinationId: string, idempotencyKey: string) =>
     apiClient.post(
       '/api/production/units/scan/dispatch/',
-      { unit_id: unitId },
+      { unit_id: unitId, destination_id: destinationId },
       withKey(idempotencyKey),
     ),
   tracking: (unitId: string) =>
