@@ -22,6 +22,7 @@ import { ProductionResponse } from '../types/index';
 
 export interface CreditNoteReversalResponse {
     message: string;
+    credit_note_id: string;
     product_id: string;
     product_name: string;
     quantity_reversed: number;
@@ -31,6 +32,19 @@ export interface CreditNoteReversalResponse {
         quantity_restored: number | string;
     }>;
     reversed_at: string;
+}
+
+export interface CreditNoteUndoResponse {
+    message: string;
+    credit_note_id: string;
+    product_id: string;
+    product_name: string;
+    raw_materials_removed: Array<{
+        material_id: string;
+        material_name: string;
+        quantity_removed: number | string;
+    }>;
+    undone_at: string;
 }
 
 // Production API wrappers
@@ -85,6 +99,14 @@ export const productionApi = {
         return apiClient.post<CreditNoteReversalResponse>(
             '/api/production/credit-note/reversal/',
             { product_id: productId },
+            { headers: { 'Idempotency-Key': idempotencyKey } },
+        );
+    },
+
+    undoCreditNoteReversal: (creditNoteId: string, idempotencyKey: string) => {
+        return apiClient.post<CreditNoteUndoResponse>(
+            '/api/production/credit-note/undo/',
+            { credit_note_id: creditNoteId },
             { headers: { 'Idempotency-Key': idempotencyKey } },
         );
     },
