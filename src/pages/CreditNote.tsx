@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileMinus2, RefreshCcw, Undo2 } from 'lucide-react';
 import { handleApiError } from '../utils/api';
-import { CreditNoteReversalResponse, productionApi, ProductionProduct } from '../utils/productionApi';
+import { CreditNoteReversalResponse, CreditNoteSummary, productionApi, ProductionProduct } from '../utils/productionApi';
 
 const newCreditNoteKey = () => `credit-note-${crypto.randomUUID()}`;
 const newCreditNoteUndoKey = () => `undo-credit-note-${crypto.randomUUID()}`;
@@ -14,6 +14,7 @@ export default function CreditNote() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<CreditNoteReversalResponse | null>(null);
   const [undoing, setUndoing] = useState(false);
+  const [activeNotes, setActiveNotes] = useState<CreditNoteSummary[]>([]);
 
   const selectedProduct = useMemo(
     () => products.find((product) => product.product_id === productId),
@@ -33,7 +34,16 @@ export default function CreditNote() {
     }
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  const loadCreditNotes = async () => {
+    try {
+      const response = await productionApi.listCreditNoteReversals();
+      setActiveNotes(response.data?.credit_notes || []);
+    } catch (err) {
+      setError(handleApiError(err));
+    }
+  };
+
+  useEffect(() => { loadProducts(); loadCreditNotes(); }, []);
 
   const confirmReversal = async () => {
     if (!selectedProduct) {
@@ -48,7 +58,7 @@ export default function CreditNote() {
     try {
       const response = await productionApi.creditNoteReversal(selectedProduct.product_id, newCreditNoteKey());
       setResult(response.data);
-      await loadProducts();
+      await Promise.all([loadProducts(), loadCreditNotes()]);
     } catch (err) {
       setError(handleApiError(err));
     } finally {
@@ -56,15 +66,14 @@ export default function CreditNote() {
     }
   };
 
-  const undoReversal = async () => {
-    if (!result) return;
-    if (!window.confirm(`Undo credit note for ${result.product_name}? This will remove the raw materials that this credit note restored.`)) return;
+  const undoReversal = async (note: Pick<CreditNoteSummary, 'credit_note_id' | 'product_name'>) => {
+    if (!window.confirm(`Undo credit note for ${note.product_name}? This will remove the raw materials that this credit note restored.`)) return;
     setUndoing(true);
     setError('');
     try {
-      await productionApi.undoCreditNoteReversal(result.credit_note_id, newCreditNoteUndoKey());
+      await productionApi.undoCreditNoteReversal(note.credit_note_id, newCreditNoteUndoKey());
       setResult(null);
-      await loadProducts();
+      await Promise.all([loadProducts(), loadCreditNotes()]);
     } catch (err) {
       setError(handleApiError(err));
     } finally {
@@ -102,10 +111,12 @@ export default function CreditNote() {
           <button onClick={confirmReversal} disabled={!selectedProduct || loading || submitting} className="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-5 py-2.5 font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"><FileMinus2 className="h-4 w-4" />{submitting ? 'Reversing…' : 'Confirm reversal'}</button>
         </div>
 
-        <div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"><AlertTriangle className="h-5 w-5 shrink-0" /><p>This action adds raw materials back to stock. It does not require a previous production push and cannot be undone from this page.</p></div>
+        <div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"><AlertTriangle className="h-5 w-5 shrink-0" /><p>This action adds raw materials back to stock. Each confirmed credit note can be undone from the Active credit notes section below, provided those materials have not been used.</p></div>
       </section>
 
-      {result && <section role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30"><div className="flex items-start justify-between gap-4"><div className="flex items-start gap-3"><CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" /><div><h2 className="font-semibold text-emerald-900 dark:text-emerald-100">Credit note confirmed — {result.product_name}</h2><p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">One unit was reversed and the following raw materials were returned to stock.</p></div></div><button onClick={undoReversal} disabled={undoing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300"><Undo2 className="h-4 w-4" />{undoing ? 'Undoing…' : 'Undo credit note'}</button></div><ul className="mt-5 divide-y divide-emerald-200 rounded-xl border border-emerald-200 bg-white/70 dark:divide-emerald-900 dark:border-emerald-900 dark:bg-gray-900/30">{result.raw_materials_restored.map((material) => <li key={material.material_id} className="flex justify-between gap-4 px-4 py-3 text-sm"><span className="font-medium text-gray-900 dark:text-white">{material.material_name}</span><span className="text-emerald-700 dark:text-emerald-300">+{material.quantity_restored}</span></li>)}</ul></section>}
+      {result && <section role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30"><div className="flex items-start justify-between gap-4"><div className="flex items-start gap-3"><CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" /><div><h2 className="font-semibold text-emerald-900 dark:text-emerald-100">Credit note confirmed — {result.product_name}</h2><p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">One unit was reversed and the following raw materials were returned to stock.</p></div></div><button onClick={() => undoReversal(result)} disabled={undoing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300"><Undo2 className="h-4 w-4" />{undoing ? 'Undoing…' : 'Undo credit note'}</button></div><ul className="mt-5 divide-y divide-emerald-200 rounded-xl border border-emerald-200 bg-white/70 dark:divide-emerald-900 dark:border-emerald-900 dark:bg-gray-900/30">{result.raw_materials_restored.map((material) => <li key={material.material_id} className="flex justify-between gap-4 px-4 py-3 text-sm"><span className="font-medium text-gray-900 dark:text-white">{material.material_name}</span><span className="text-emerald-700 dark:text-emerald-300">+{material.quantity_restored}</span></li>)}</ul></section>}
+
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"><div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"><div><h2 className="text-lg font-semibold text-gray-900 dark:text-white">Active credit notes</h2><p className="mt-1 text-sm text-gray-500">Undo any completed credit note from this list.</p></div><button onClick={loadCreditNotes} disabled={undoing} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700">Refresh list</button></div>{activeNotes.length === 0 ? <p className="px-6 py-8 text-sm text-gray-500">No active credit notes.</p> : <ul className="divide-y divide-gray-200 dark:divide-gray-700">{activeNotes.map((note) => <li key={note.credit_note_id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-gray-900 dark:text-white">{note.product_name}</p><p className="mt-1 text-xs text-gray-500">Credit note: {note.credit_note_id} · {note.reversed_at ? new Date(note.reversed_at).toLocaleString() : 'Date unavailable'}</p></div><button onClick={() => undoReversal(note)} disabled={undoing} className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:text-rose-300"><Undo2 className="h-4 w-4" />{undoing ? 'Undoing…' : 'Undo'}</button></li>)}</ul>}</section>
     </main>
   );
 }

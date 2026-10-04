@@ -47,6 +47,16 @@ export interface CreditNoteUndoResponse {
     undone_at: string;
 }
 
+export interface CreditNoteSummary {
+    credit_note_id: string;
+    product_id: string;
+    product_name: string;
+    quantity_reversed: number;
+    raw_materials_restored: CreditNoteReversalResponse['raw_materials_restored'];
+    reversed_at: string;
+    created_by?: string;
+}
+
 // Production API wrappers
 export const productionApi = {
     create: (data: Omit<ProductionRecord, 'id'>) => {
@@ -109,6 +119,10 @@ export const productionApi = {
             { credit_note_id: creditNoteId },
             { headers: { 'Idempotency-Key': idempotencyKey } },
         );
+    },
+
+    listCreditNoteReversals: () => {
+        return apiClient.get<{ credit_notes: CreditNoteSummary[] }>('/api/production/credit-note/reversals/');
     },
 
     dailyReport: (date: string) => {
