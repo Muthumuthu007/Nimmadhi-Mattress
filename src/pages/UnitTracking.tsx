@@ -168,17 +168,23 @@ export default function UnitTracking() {
 
     // Use a dedicated print document so the browser prints one label only,
     // rather than the full dashboard or the whole generated batch.
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=420,height=520');
+    // Safari can open a blank tab when `noopener`/`noreferrer` is supplied to
+    // window.open and the caller subsequently writes the print document.
+    // Open a same-origin document first, write it synchronously from the click
+    // handler, then remove the opener after its contents are ready.
+    const printWindow = window.open('', '_blank', 'width=420,height=520');
     if (!printWindow) {
       setError('Your browser blocked the print window. Allow pop-ups for this site and try again.');
       return;
     }
+    printWindow.document.open();
     printWindow.document.write(`<!doctype html><html><head><title>QR label ${id}</title><style>
       @page { margin: 10mm; } body { margin: 0; font-family: Arial, sans-serif; color: #111827; }
       .label { width: 76mm; min-height: 76mm; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 5mm; padding: 6mm; text-align: center; }
       svg { display: block; margin: 0 auto; width: 46mm; height: 46mm; } .product { margin-top: 4mm; font-size: 11pt; font-weight: 700; } .unit { margin-top: 3mm; font-size: 7pt; overflow-wrap: anywhere; }
-    </style></head><body><div class="label">${label.innerHTML}</div><script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };</script></body></html>`);
+    </style></head><body><div class="label">${label.innerHTML}</div><script>window.addEventListener('load', () => { setTimeout(() => { window.focus(); window.print(); }, 100); }); window.addEventListener('afterprint', () => window.close());</script></body></html>`);
     printWindow.document.close();
+    printWindow.opener = null;
   };
 
   return (
