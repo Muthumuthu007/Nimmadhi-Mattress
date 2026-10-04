@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { QRCodeSVG } from 'qrcode.react';
-import { Camera, CheckCircle2, Clipboard, PackageCheck, QrCode, Search, Truck, X } from 'lucide-react';
+import { Camera, CheckCircle2, Clipboard, PackageCheck, QrCode, Search, X } from 'lucide-react';
 import { productionApi, ProductionProduct } from '../utils/productionApi';
 import { handleApiError } from '../utils/api';
 import { newIdempotencyKey, UnitGenerationResponse, unitApi } from '../utils/unitApi';
@@ -55,11 +55,10 @@ export default function UnitTracking() {
   const [cameraError, setCameraError] = useState('');
   const [tracking, setTracking] = useState<UnitTrackingRecord | null>(null);
   const [movements, setMovements] = useState<UnitMovement[]>([]);
-  const [loading, setLoading] = useState<'products' | 'generate' | 'dispatch' | 'track' | null>(null);
+  const [loading, setLoading] = useState<'products' | 'generate' | 'track' | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const generateKey = useRef<{ fingerprint: string; key: string } | null>(null);
-  const dispatchKeys = useRef(new Map<string, string>());
   const labelRefs = useRef(new Map<string, HTMLElement>());
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -155,21 +154,6 @@ export default function UnitTracking() {
     finally { setLoading(null); }
   };
 
-  const dispatch = async () => {
-    const value = unitIdFromScan(unitId);
-    if (!value) { setError('Enter or scan a READY FOR DISPATCH unit ID first.'); return; }
-    if (value !== unitId) setUnitId(value);
-    setLoading('dispatch'); setError(''); setNotice('');
-    const key = dispatchKeys.current.get(value) || newIdempotencyKey('dispatch-unit');
-    dispatchKeys.current.set(value, key);
-    try {
-      const response = await unitApi.dispatch(value, key);
-      setNotice(`Unit ${response.data.unit_id} is now in transit and ready for outlet receipt.`);
-      await refreshTracking(value);
-    } catch (err) { setError(handleApiError(err)); }
-    finally { setLoading(null); }
-  };
-
   const copy = async (value: string) => {
     try { await navigator.clipboard.writeText(value); setNotice('Copied to clipboard.'); }
     catch { setError('Could not copy automatically. Select and copy the unit ID manually.'); }
@@ -200,7 +184,7 @@ export default function UnitTracking() {
   return (
     <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       <section className="rounded-2xl bg-gradient-to-r from-indigo-700 to-violet-700 p-6 text-white shadow-lg">
-        <div className="flex gap-4 items-start"><QrCode className="w-9 h-9 shrink-0" /><div><h1 className="text-2xl font-bold">QR unit management</h1><p className="mt-1 text-indigo-100">Generate and print factory QR labels here. Factory dispatch is confirmed by an administrator in the Sales app; outlet receipt is recorded when the employee scans the label.</p></div></div>
+        <div className="flex gap-4 items-start"><QrCode className="w-9 h-9 shrink-0" /><div><h1 className="text-2xl font-bold">QR unit management</h1><p className="mt-1 text-indigo-100">Generate and print factory QR labels here. Factory dispatch is confirmed from Sales Admin → Load Plans; outlet receipt is recorded when the employee scans the label.</p></div></div>
       </section>
       {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{notice}</div>}
@@ -218,7 +202,7 @@ export default function UnitTracking() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <h2 className="font-semibold text-lg text-gray-900 dark:text-white">2. Scan to track</h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Scan a physical QR label to view its status. Dispatch confirmation is handled in the Sales Admin Dispatch page.</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Scan a physical QR label to view its status. Dispatch confirmation is handled in Sales Admin → Load Plans.</p>
           {cameraError && <div role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">{cameraError}</div>}
           <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-100">QR unit ID<input value={unitId} onChange={(e) => setUnitId(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && refreshTracking()} placeholder="Scan QR code or paste the unit ID" className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 dark:border-gray-500 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-400" /></label>
           <div className="mt-4 flex flex-wrap gap-3"><button onClick={() => { setCameraError(''); setCameraOpen(true); }} disabled={cameraOpen || loading !== null} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-500 dark:text-gray-100 dark:hover:bg-gray-700"><Camera className="w-4 h-4" />Scan with camera</button><button onClick={() => refreshTracking()} disabled={loading !== null} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-500 dark:text-gray-100 dark:hover:bg-gray-700"><Search className="w-4 h-4" />Track unit</button></div>
