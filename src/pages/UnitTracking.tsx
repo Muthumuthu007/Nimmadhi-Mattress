@@ -178,11 +178,21 @@ export default function UnitTracking() {
       return;
     }
     printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html><head><title>QR label ${id}</title><style>
-      @page { margin: 10mm; } body { margin: 0; font-family: Arial, sans-serif; color: #111827; }
-      .label { width: 76mm; min-height: 76mm; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 5mm; padding: 6mm; text-align: center; }
-      svg { display: block; margin: 0 auto; width: 46mm; height: 46mm; } .product { margin-top: 4mm; font-size: 11pt; font-weight: 700; } .unit { margin-top: 3mm; font-size: 7pt; overflow-wrap: anywhere; }
-    </style></head><body><div class="label">${label.innerHTML}</div><script>window.addEventListener('load', () => { setTimeout(() => { window.focus(); window.print(); }, 100); }); window.addEventListener('afterprint', () => window.close());</script></body></html>`);
+    // The label printer receives only the code, on a square 50 mm sticker.
+    // Do not include product text or an ID: the QR payload itself contains the
+    // immutable unit ID and remains readable after the sticker is attached.
+    const qrMarkup = label.querySelector('svg')?.outerHTML;
+    if (!qrMarkup) {
+      printWindow.close();
+      setError('The QR image is not ready to print. Please generate the label again.');
+      return;
+    }
+    printWindow.document.write(`<!doctype html><html><head><title>QR sticker</title><style>
+      @page { size: 50mm 50mm; margin: 0; }
+      html, body { width: 50mm; height: 50mm; margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
+      .qr-sticker { width: 50mm; height: 50mm; display: flex; align-items: center; justify-content: center; }
+      svg { display: block; width: 46mm; height: 46mm; }
+    </style></head><body><div class="qr-sticker">${qrMarkup}</div><script>window.addEventListener('load', () => { setTimeout(() => { window.focus(); window.print(); }, 100); }); window.addEventListener('afterprint', () => window.close());</script></body></html>`);
     printWindow.document.close();
     printWindow.opener = null;
   };
