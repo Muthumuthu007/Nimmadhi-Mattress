@@ -47,6 +47,7 @@ export interface Product {
   /** Product Group this product belongs to, as returned by grouped_products */
   groupId?: string | null;
   groupName?: string | null;
+  remarks?: string;
 }
 
 /** A single section from the API's grouped_products response */

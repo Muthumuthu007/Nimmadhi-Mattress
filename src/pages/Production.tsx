@@ -6,7 +6,7 @@ import { AlterMaterialsModal } from '../components/AlterMaterialsModal';
 import { MoveProductModal } from '../components/MoveProductModal';
 import { useProducts } from '../contexts/ProductContext';
 import { useInventory } from '../hooks/useInventory';
-import { Package2, RefreshCw, Loader2, Search, Trash2, AlertCircle, ArrowUpDown, Settings, Download, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ArrowUp, Layers, FolderPlus, MoveRight } from 'lucide-react';
+import { Package2, RefreshCw, Loader2, Search, Trash2, AlertCircle, ArrowUpDown, Settings, Download, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ArrowUp, Layers, FolderPlus, MoveRight, Pencil } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { productionApi, productGroupApi } from '../utils/productionApi';
@@ -18,6 +18,7 @@ import { NewProductGroupForm } from '../components/NewProductGroupForm';
 import { Product } from '../types';
 import { WithMatches } from '../hooks/useFuzzySearch';
 import { formatApiDate, toTimestamp } from '../utils/dateUtils';
+import { useAuth } from '../contexts/AuthContext';
 
 // Module-level constant so the search memo isn't invalidated every render.
 const PRODUCT_SEARCH_KEYS = ['name', 'id'];
@@ -106,6 +107,7 @@ interface ProductCardProps {
   onAlterMaterials: (product: Product) => void;
   onDeleteClick: (productId: string) => void;
   onMoveClick: (product: Product, sourceGroupId: string | null, sourceGroupName: string) => void;
+  onEditDetails: (product: Product) => void;
   currentGroupId: string | null;
   currentGroupName: string;
 }
@@ -122,6 +124,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   onAlterMaterials,
   onDeleteClick,
   onMoveClick,
+  onEditDetails,
   currentGroupId,
   currentGroupName,
 }) => {
@@ -176,6 +179,13 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
               )).toFixed(2)}
             </div>
           </div>
+          <button
+            onClick={() => onEditDetails(product)}
+            className="flex-shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 p-2 sm:p-3 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-200 shadow-sm hover:shadow-md"
+            title="Edit product name and remarks"
+          >
+            <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
           <button
             onClick={() => onAlterMaterials(product)}
             className="flex-shrink-0 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 p-2 sm:p-3 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all duration-200 shadow-sm hover:shadow-md"
@@ -274,6 +284,13 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             </div>
           </div>
 
+          {product.remarks && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-4 dark:border-amber-800 dark:bg-amber-900/20">
+              <div className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-1">Remarks</div>
+              <p className="whitespace-pre-wrap text-sm text-amber-800 dark:text-amber-300">{product.remarks}</p>
+            </div>
+          )}
+
           <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
             <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Production Cost Breakdown</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-900 dark:text-gray-200">
@@ -292,8 +309,59 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
 });
 ProductCard.displayName = 'ProductCard';
 
+interface EditProductDetailsModalProps {
+  product: Product;
+  username: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ product, username, onClose, onSuccess }) => {
+  const [productName, setProductName] = useState(product.name);
+  const [remarks, setRemarks] = useState(product.remarks || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!productName.trim()) { setError('Product name is required.'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      await productionApi.updateDetails({
+        product_id: product.id,
+        username,
+        product_name: productName.trim(),
+        remarks: remarks.trim(),
+      });
+      onSuccess();
+    } catch (requestError: any) {
+      setError(requestError?.response?.data?.error || requestError?.message || 'Unable to update product details.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <form onSubmit={save} className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <div><h2 className="text-lg font-bold text-gray-900 dark:text-white">Edit product details</h2><p className="mt-0.5 text-sm text-gray-500">Update the product name or its internal remark.</p></div>
+        <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Close"><X className="h-5 w-5 text-gray-500" /></button>
+      </div>
+      <div className="space-y-4 px-6 py-5">
+        {error && <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</div>}
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Product name<input required maxLength={200} value={productName} onChange={(event) => setProductName(event.target.value)} className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></label>
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Remarks <span className="font-normal text-gray-400">(optional)</span><textarea rows={4} maxLength={1000} value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Add a note about this product" className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></label>
+      </div>
+      <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-800"><button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</button><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? 'Saving…' : 'Save details'}</button></div>
+    </form>
+  </div>;
+};
+
 const Production = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const { products, groupedProducts, fetchProducts, addProduct } = useProducts();
   const { refreshInventory } = useInventory();
 
@@ -309,6 +377,7 @@ const Production = () => {
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [showAlterMaterialsModal, setShowAlterMaterialsModal] = useState(false);
   const [selectedProductForAlter, setSelectedProductForAlter] = useState<any>(null);
+  const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [showCreateGroupForm, setShowCreateGroupForm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string; productCount: number } | null>(null);
@@ -511,6 +580,12 @@ const Production = () => {
     setSelectedProductForAlter(product);
     setShowAlterMaterialsModal(true);
   }, []);
+
+  const handleDetailsSaved = async () => {
+    setSelectedProductForEdit(null);
+    await fetchProductionList();
+    setSuccessMessage('Product name and remarks updated successfully!');
+  };
 
   const handleMoveClick = useCallback((
     product: Product,
@@ -1118,6 +1193,7 @@ const Production = () => {
                                 isDeleting={isDeletingProduct === product.id}
                                 onToggleExpand={handleToggleExpand}
                                 onAlterMaterials={handleAlterMaterials}
+                                onEditDetails={setSelectedProductForEdit}
                                 onDeleteClick={handleDeleteClick}
                                 onMoveClick={handleMoveClick}
                                 currentGroupId={section.groupId}
@@ -1193,6 +1269,15 @@ const Production = () => {
           isOpen={showAlterMaterialsModal}
           onClose={handleAlterMaterialsClose}
           onSuccess={handleAlterMaterialsSuccess}
+        />
+      )}
+
+      {selectedProductForEdit && (
+        <EditProductDetailsModal
+          product={selectedProductForEdit}
+          username={user?.username || ''}
+          onClose={() => setSelectedProductForEdit(null)}
+          onSuccess={handleDetailsSaved}
         />
       )}
 

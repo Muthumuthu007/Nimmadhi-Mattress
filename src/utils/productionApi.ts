@@ -203,6 +203,7 @@ export interface ProductionProduct {
     labour_cost?: number;
     transport_cost?: number;
     other_cost?: number;
+    remarks?: string;
     created_at?: string;
     group_id?: string | null;
     group_name?: string | null;

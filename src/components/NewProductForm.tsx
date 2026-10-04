@@ -10,6 +10,7 @@ import { productGroupApi, ProductGroup } from '../utils/productionApi';
 interface Product {
   id: string;
   name: string;
+  remarks?: string;
   materials: Array<{ materialName: string; quantity: number }>;
   maxProduce: number;
   productionCostBreakdown: Record<string, number>;
@@ -38,6 +39,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
   const [isMaximized, setIsMaximized] = useState(false);
   const [product, setProduct] = useState({
     name: '',
+    remarks: '',
     materials: [] as Array<{ materialName: string; quantity: string }>,
     wastage_percent: '',
     transport_cost: '',
@@ -252,6 +254,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
 
       const payload = {
         product_name: product.name,
+        remarks: product.remarks.trim(),
         username: user.username,
         group_id: selectedGroupId,
         stock_needed: stockNeeded,
@@ -304,6 +307,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         );
         setProduct({
           name: '',
+          remarks: '',
           materials: [],
           wastage_percent: '',
           transport_cost: '',
@@ -383,6 +387,19 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 value={product.name}
                 onChange={e => setProduct(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="product-remarks" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Remarks <span className="text-gray-400">(optional)</span></label>
+              <textarea
+                id="product-remarks"
+                rows={3}
+                maxLength={1000}
+                placeholder="Add a note about this product"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                value={product.remarks}
+                onChange={e => setProduct(prev => ({ ...prev, remarks: e.target.value }))}
               />
             </div>
 
