@@ -70,7 +70,7 @@ export const Header = () => {
   ];
 
   const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+    `flex shrink-0 items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
       isActive
         ? 'bg-white/20 text-white shadow-sm'
         : 'text-white/90 hover:bg-white/10 hover:text-white'
@@ -89,7 +89,7 @@ export const Header = () => {
         ref={menuRef}
         className="bg-primary dark:bg-gray-800 shadow-lg transition-colors border-b-2 border-primary-600 dark:border-primary-500 relative z-40"
       >
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
             {/* ── Logo ── */}
@@ -98,15 +98,16 @@ export const Header = () => {
             </div>
 
             {/* ── Desktop Navigation ── */}
-            <nav className="hidden md:flex items-center gap-1 flex-1 justify-end">
+            <nav className="hidden md:flex min-w-0 items-center gap-1 flex-1 justify-end">
               {/* Main links */}
-              <div className="flex items-center gap-0.5 lg:gap-1 flex-wrap justify-end">
+              <div className="flex min-w-0 items-center gap-0.5 lg:gap-1 flex-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {navItems.filter(n => n.visible).map(item => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.end}
                     className={desktopLinkClass}
+                    title={item.label}
                   >
                     {item.icon}
                     <span className="hidden lg:inline">{item.label}</span>
