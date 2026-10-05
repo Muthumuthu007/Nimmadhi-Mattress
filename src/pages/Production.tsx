@@ -6,7 +6,7 @@ import { AlterMaterialsModal } from '../components/AlterMaterialsModal';
 import { MoveProductModal } from '../components/MoveProductModal';
 import { useProducts } from '../contexts/ProductContext';
 import { useInventory } from '../hooks/useInventory';
-import { Package2, RefreshCw, Loader2, Search, Trash2, AlertCircle, ArrowUpDown, Settings, Download, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ArrowUp, Layers, FolderPlus, MoveRight, Pencil } from 'lucide-react';
+import { Package2, RefreshCw, Loader2, Search, Trash2, AlertCircle, ArrowUpDown, Settings, Download, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ArrowUp, Layers, FolderPlus, MoveRight, Pencil, X } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { productionApi, productGroupApi } from '../utils/productionApi';
