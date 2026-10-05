@@ -143,6 +143,8 @@ export interface DailyReportItem {
   opening_stock_amount: number;
   inward_qty: number;
   inward_amount: number;
+  credit_note_qty: number;
+  credit_note_amount: number;
   consumption_qty: number;
   consumption_amount: number;
   balance_qty: number;
@@ -157,6 +159,8 @@ export interface DailyReportGroupSummary {
   opening_stock_amount: number;
   inward_qty: number;
   inward_amount: number;
+  credit_note_qty: number;
+  credit_note_amount: number;
   consumption_qty: number;
   consumption_amount: number;
   balance_qty: number;

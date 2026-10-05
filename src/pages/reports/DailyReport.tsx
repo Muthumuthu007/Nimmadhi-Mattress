@@ -378,7 +378,7 @@ const DailyReport = () => {
       // Prepare main sheet data
       const mainSheetData = [];
       mainSheetData.push([
-        'SL. NO', 'DESCRIPTION', 'RATE', 'OPENING STOCK', 'OPENING STOCK AMOUNT', 'STOCK INWARD', 'INWARD AMOUNT', 'CONSUMPTION', 'CONSUMPTION AMOUNT', 'BALANCE STOCK', 'BALANCE AMOUNT'
+        'SL. NO', 'DESCRIPTION', 'RATE', 'OPENING STOCK', 'OPENING STOCK AMOUNT', 'STOCK INWARD', 'INWARD AMOUNT', 'CREDIT NOTE RETURN', 'CONSUMPTION', 'CONSUMPTION AMOUNT', 'BALANCE STOCK', 'BALANCE AMOUNT'
       ]);
       let slNo = 1;
       Object.entries(groupedRows).forEach(([group, groupItems]) => {
@@ -394,6 +394,7 @@ const DailyReport = () => {
             item.opening_stock_amount,
             item.inward_qty,
             item.inward_amount,
+            item.credit_note_qty,
             item.consumption_qty,
             item.consumption_amount,
             item.balance_qty,
@@ -409,6 +410,7 @@ const DailyReport = () => {
             typeof totalRow.opening_stock_amount === 'undefined' ? '' : totalRow.opening_stock_amount,
             typeof totalRow.inward_qty === 'undefined' ? '' : totalRow.inward_qty,
             typeof totalRow.inward_amount === 'undefined' ? '' : totalRow.inward_amount,
+            typeof totalRow.credit_note_qty === 'undefined' ? '' : totalRow.credit_note_qty,
             typeof totalRow.consumption_qty === 'undefined' ? '' : totalRow.consumption_qty,
             typeof totalRow.consumption_amount === 'undefined' ? '' : totalRow.consumption_amount,
             typeof totalRow.balance_qty === 'undefined' ? '' : totalRow.balance_qty,
@@ -419,7 +421,7 @@ const DailyReport = () => {
       // Group Summary sheet data
       mainSheetData.push([]); // Empty row
       mainSheetData.push([
-        'SL. NO', 'DESCRIPTION', 'OPENING STOCK', 'OPENING STOCK AMOUNT', 'STOCK INWARD', 'INWARD AMOUNT', 'CONSUMPTION', 'CONSUMPTION AMOUNT', 'BALANCE STOCK', 'BALANCE AMOUNT'
+        'SL. NO', 'DESCRIPTION', 'OPENING STOCK', 'OPENING STOCK AMOUNT', 'STOCK INWARD', 'INWARD AMOUNT', 'CREDIT NOTE RETURN', 'CONSUMPTION', 'CONSUMPTION AMOUNT', 'BALANCE STOCK', 'BALANCE AMOUNT'
       ]);
       (Array.isArray(reportData.group_summary) ? reportData.group_summary : []).forEach((row, idx) => {
         mainSheetData.push([
@@ -429,6 +431,7 @@ const DailyReport = () => {
           row.opening_stock_amount,
           row.inward_qty,
           row.inward_amount,
+          row.credit_note_qty,
           row.consumption_qty,
           row.consumption_amount,
           row.balance_qty,
@@ -438,7 +441,7 @@ const DailyReport = () => {
       // Create worksheet and workbook
       const ws = XLSX.utils.aoa_to_sheet(mainSheetData);
       ws['!cols'] = [
-        { wch: 8 }, { wch: 22 }, { wch: 8 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 14 }, { wch: 18 }
+        { wch: 8 }, { wch: 22 }, { wch: 8 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 22 }, { wch: 14 }, { wch: 18 }
       ];
       XLSX.writeFile(
         { SheetNames: ['Report'], Sheets: { Report: ws } },
@@ -581,6 +584,7 @@ const DailyReport = () => {
                 { key: 'opening_stock_amount', label: 'Opening Amount', sortable: true },
                 { key: 'inward_qty', label: 'Stock Inward', sortable: true },
                 { key: 'inward_amount', label: 'Inward Amount', sortable: true },
+                { key: 'credit_note_qty', label: 'Credit Note Return', sortable: true },
                 { key: 'consumption_qty', label: 'Consumption', sortable: true },
                 { key: 'consumption_amount', label: 'Consumption Amount', sortable: true },
                 { key: 'balance_qty', label: 'Balance Stock', sortable: true },
@@ -609,6 +613,7 @@ const DailyReport = () => {
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Opening Amount</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Stock Inward</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Inward Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Credit Note Return</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Consumption</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Consumption Amount</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600">Balance Stock</th>
@@ -624,6 +629,7 @@ const DailyReport = () => {
                       <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 border-t border-r border-gray-300 dark:border-gray-600">{row.opening_stock_amount}</td>
                       <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 border-t border-r border-gray-300 dark:border-gray-600">{row.inward_qty}</td>
                       <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 border-t border-r border-gray-300 dark:border-gray-600">{row.inward_amount}</td>
+                      <td className="px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300 border-t border-r border-gray-300 dark:border-gray-600">{row.credit_note_qty}</td>
                       <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 border-t border-r border-gray-300 dark:border-gray-600">{row.consumption_qty}</td>
                       <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 border-t border-r border-gray-300 dark:border-gray-600">{row.consumption_amount}</td>
                       <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-200 border-t border-r border-gray-300 dark:border-gray-600">{row.balance_qty}</td>
@@ -676,4 +682,3 @@ const DailyReport = () => {
 };
 
 export default DailyReport;
-
