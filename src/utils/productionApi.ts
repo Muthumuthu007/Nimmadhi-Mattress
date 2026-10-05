@@ -31,7 +31,24 @@ export interface CreditNoteReversalResponse {
         material_name: string;
         quantity_restored: number | string;
     }>;
+    raw_materials_excluded?: Array<{
+        material_id: string;
+        material_name: string;
+        quantity_not_restored: number | string;
+    }>;
     reversed_at: string;
+}
+
+export interface CreditNoteMaterialPreview {
+    product_id: string;
+    product_name: string;
+    raw_materials: Array<{
+        material_id: string;
+        material_name: string;
+        quantity_to_restore: number | string;
+        current_stock: number | string;
+        exists_in_inventory: boolean;
+    }>;
 }
 
 export interface CreditNoteUndoResponse {
@@ -105,10 +122,16 @@ export const productionApi = {
         return apiClient.post<ProductionResponse>('/api/production/undo/', data);
     },
 
-    creditNoteReversal: (productId: string, idempotencyKey: string) => {
+    creditNoteMaterials: (productId: string) => {
+        return apiClient.get<CreditNoteMaterialPreview>('/api/production/credit-note/materials/', {
+            params: { product_id: productId },
+        });
+    },
+
+    creditNoteReversal: (productId: string, excludedMaterialIds: string[], idempotencyKey: string) => {
         return apiClient.post<CreditNoteReversalResponse>(
             '/api/production/credit-note/reversal/',
-            { product_id: productId },
+            { product_id: productId, excluded_material_ids: excludedMaterialIds },
             { headers: { 'Idempotency-Key': idempotencyKey } },
         );
     },
