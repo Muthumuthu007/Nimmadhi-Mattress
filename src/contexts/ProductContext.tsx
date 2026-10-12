@@ -108,6 +108,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return {
             groupId,
             groupName,
+            parentId: section.parent_id,
+            groupKind: section.group_kind,
             productCount: Number(section.product_count ?? sectionProducts.length),
             products: sectionProducts,
           };

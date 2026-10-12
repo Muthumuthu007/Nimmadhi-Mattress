@@ -52,6 +52,8 @@ export interface Product {
 
 /** A single section from the API's grouped_products response */
 export interface ProductGroupSection {
+  parentId?: string | null;
+  groupKind?: string;
   groupId: string | null;
   groupName: string;
   productCount: number;

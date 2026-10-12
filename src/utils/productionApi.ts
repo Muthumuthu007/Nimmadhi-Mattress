@@ -234,6 +234,8 @@ export interface ProductionProduct {
 
 /** A single grouped section inside the /api/production/list/ response */
 export interface ProductionGroup {
+    parent_id?: string | null;
+    group_kind?: string;
     group_id: string | null;
     group_name: string;
     product_count: number;
@@ -249,6 +251,8 @@ export interface ProductionListResponse {
 
 /** A selectable production group, as returned by /api/production/groups/names/ */
 export interface ProductGroup {
+    parent_id?: string | null;
+    group_kind?: string;
     group_id: string;
     name: string;
 }
@@ -284,9 +288,11 @@ export const productGroupApi = {
         return apiClient.get<GetGroupsResponse>('/api/production/groups/names/');
     },
 
-    createGroup: (name: string) => {
+    getHierarchy: () => apiClient.get<GetGroupsResponse>('/api/production/groups/list/'),
+    moveGroup: (groupId: string, parentId: string) => apiClient.post('/api/production/groups/move/', {group_id: groupId, parent_id: parentId}),
+    createGroup: (name: string, parentId: string) => {
         return apiClient.post<CreateGroupResponse>('/api/production/groups/create/', {
-            name
+            name, parent_id: parentId
         });
     },
 

@@ -1,3 +1,5 @@
+import ProductionGroupHierarchy from '../components/ProductionGroupHierarchy';
+import ProductionGroupPlacementModal from '../components/ProductionGroupPlacementModal';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ProductionForm } from '../components/ProductionForm';
@@ -380,6 +382,8 @@ const Production = () => {
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [showCreateGroupForm, setShowCreateGroupForm] = useState(false);
+  const [newGroupParent,setNewGroupParent]=useState<string>();
+  const [groupToPlace,setGroupToPlace]=useState<{id:string;name:string}|null>(null);
   const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string; productCount: number } | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 
@@ -1016,11 +1020,11 @@ const Production = () => {
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
             <button
-              onClick={() => setShowCreateGroupForm(true)}
+              onClick={() => {setNewGroupParent(undefined);setShowCreateGroupForm(true);}}
               className="flex items-center px-4 md:px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl font-medium shadow-lg hover:bg-white/30 hover:shadow-xl hover:scale-105 transition-all duration-200 text-sm md:text-base whitespace-nowrap"
             >
               <FolderPlus className="h-5 w-5 mr-2" />
-              Create Group
+              Create Subgroup
             </button>
             <ProductionExcelUpload onUploadComplete={handleRefresh} />
           </div>
@@ -1140,7 +1144,7 @@ const Production = () => {
             </div>
             <div className="space-y-8">
               {displaySections.length > 0 ? (
-                displaySections.map(section => {
+                <ProductionGroupHierarchy sections={groupedProducts} visibleSections={displaySections} searching={isSearching} isOpen={isGroupOpen} onAdd={id=>{setNewGroupParent(id);setShowCreateGroupForm(true);}} renderSection={section => {
                   const { groupKey } = section;
                   const isOpen = isGroupOpen(groupKey);
                   return (
@@ -1167,6 +1171,7 @@ const Production = () => {
                           </span>
                         </button>
 
+                        {groupKey !== UNGROUPED_GROUP_KEY && <><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setNewGroupParent(groupKey);setShowCreateGroupForm(true);}}>+ Subgroup</button><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>setGroupToPlace({id:groupKey,name:section.groupName})}>Place group</button></>}
                         {groupKey !== UNGROUPED_GROUP_KEY && (
                           <button
                             type="button"
@@ -1209,7 +1214,7 @@ const Production = () => {
                       )}
                     </div>
                   );
-                })
+                }} />
               ) : (
                 <div className="py-12 text-center">
                   <div className="h-16 w-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1250,6 +1255,7 @@ const Production = () => {
         </div>
       </div>
       <ScrollToTop />
+      {groupToPlace && <ProductionGroupPlacementModal groupId={groupToPlace.id} name={groupToPlace.name} onClose={()=>setGroupToPlace(null)} onSuccess={()=>{fetchProducts();setSuccessMessage('Group placement updated.');}} />}
 
       <DeleteConfirmationDialog
         isOpen={showDeleteDialog}
@@ -1283,6 +1289,7 @@ const Production = () => {
 
       {showCreateGroupForm && (
         <NewProductGroupForm
+          parentId={newGroupParent}
           onClose={() => setShowCreateGroupForm(false)}
           onSuccess={handleCreateGroupSuccess}
         />

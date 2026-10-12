@@ -1,0 +1,11 @@
+import {productionGroupPath,hasProductionMainParent} from '../utils/productionHierarchy';
+import React,{useEffect,useState} from 'react';
+import {productGroupApi,ProductGroup} from '../utils/productionApi';
+import {handleApiError} from '../utils/api';
+export default function ProductionGroupPlacementModal({groupId,name,onClose,onSuccess}:{groupId:string;name:string;onClose:()=>void;onSuccess:()=>void}){
+ const [groups,setGroups]=useState<ProductGroup[]>([]),[parent,setParent]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{productGroupApi.getHierarchy().then(response=>setGroups(response.data.groups || [])).catch(err=>setError(handleApiError(err)));},[]);
+ const allowed=groups.filter(group=>{if(!hasProductionMainParent(group,groups))return false;let current:ProductGroup|undefined=group;const seen=new Set<string>();while(current){if(current.group_id===groupId||seen.has(current.group_id))return false;seen.add(current.group_id);current=groups.find(item=>item.group_id===current?.parent_id);}return true;});
+ const save=async()=>{setBusy(true);setError('');try{await productGroupApi.moveGroup(groupId,parent);onSuccess();onClose();}catch(err){setError(handleApiError(err));}finally{setBusy(false);}};
+ return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md space-y-4"><h2 className="text-xl font-semibold dark:text-white">Place group · {name}</h2><p className="text-sm text-gray-500">Products remain in this group. Choose its new parent.</p><select value={parent} onChange={e=>setParent(e.target.value)} className="w-full border rounded p-2 dark:bg-gray-700 dark:text-white"><option value="">Select parent group</option>{allowed.map(group=><option key={group.group_id} value={group.group_id}>{productionGroupPath(group,groups)}</option>)}</select>{error&&<p role="alert" className="text-red-600">{error}</p>}<div className="flex gap-3"><button disabled={!parent||busy} onClick={save} className="bg-indigo-600 text-white rounded px-4 py-2 disabled:opacity-50">{busy?'Saving…':'Save placement'}</button><button disabled={busy} onClick={onClose}>Cancel</button></div></div></div>;
+}

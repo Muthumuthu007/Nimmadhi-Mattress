@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import {productionGroupPath,hasProductionMainParent} from '../utils/productionHierarchy';
+import React, { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { productGroupApi } from '../utils/productionApi';
+import { productGroupApi, ProductGroup } from '../utils/productionApi';
 import { handleApiError } from '../utils/api';
 
 interface NewProductGroupFormProps {
   onClose: () => void;
+  parentId?: string;
   onSuccess: (groupName: string) => void;
 }
 
-export const NewProductGroupForm: React.FC<NewProductGroupFormProps> = ({ onClose, onSuccess }) => {
+export const NewProductGroupForm: React.FC<NewProductGroupFormProps> = ({ onClose, onSuccess, parentId: initialParent }) => {
   const [groupName, setGroupName] = useState('');
+  const [parentId,setParentId]=useState(initialParent || '');
+  const [groups,setGroups]=useState<ProductGroup[]>([]);
+  useEffect(()=>{productGroupApi.getHierarchy().then(response=>setGroups(response.data.groups || [])).catch(err=>setError(handleApiError(err)));},[]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +31,7 @@ export const NewProductGroupForm: React.FC<NewProductGroupFormProps> = ({ onClos
     setError(null);
 
     try {
-      await productGroupApi.createGroup(name);
+      await productGroupApi.createGroup(name, parentId);
       onSuccess(name);
       onClose();
     } catch (err: unknown) {
@@ -40,7 +45,7 @@ export const NewProductGroupForm: React.FC<NewProductGroupFormProps> = ({ onClos
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
         <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Product Group</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Production Subgroup</h2>
           <button
             type="button"
             onClick={onClose}
@@ -58,6 +63,7 @@ export const NewProductGroupForm: React.FC<NewProductGroupFormProps> = ({ onClos
             </div>
           )}
 
+          <div className="mb-4"><label className="block text-sm font-medium mb-1">Parent group</label><select value={parentId} onChange={e=>setParentId(e.target.value)} required disabled={isSubmitting} className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"><option value="">Select Mattress, Accessories, or a subgroup</option>{groups.filter(group=>hasProductionMainParent(group,groups)).map(group=><option key={group.group_id} value={group.group_id}>{productionGroupPath(group,groups)}</option>)}</select></div>
           <div className="mb-4">
             <label
               htmlFor="productGroupName"
@@ -89,8 +95,8 @@ export const NewProductGroupForm: React.FC<NewProductGroupFormProps> = ({ onClos
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !groupName.trim()}
-              className={`flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors ${isSubmitting || !groupName.trim() ? 'opacity-75 cursor-not-allowed' : ''
+              disabled={isSubmitting || !groupName.trim() || !parentId}
+              className={`flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors ${isSubmitting || !groupName.trim() || !parentId ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
