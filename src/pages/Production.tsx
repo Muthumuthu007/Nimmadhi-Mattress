@@ -1,3 +1,4 @@
+import TransferProductionProductsModal from '../components/TransferProductionProductsModal';
 import ProductionGroupHierarchy from '../components/ProductionGroupHierarchy';
 import ProductionGroupPlacementModal from '../components/ProductionGroupPlacementModal';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -386,6 +387,9 @@ const Production = () => {
   const [groupToPlace,setGroupToPlace]=useState<{id:string;name:string}|null>(null);
   const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string; productCount: number } | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+
+  const [transferSource,setTransferSource]=useState<string|null|undefined>();
+  const [showTransferProducts,setShowTransferProducts]=useState(false);
 
   // Move Product modal state
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -1026,6 +1030,7 @@ const Production = () => {
               <FolderPlus className="h-5 w-5 mr-2" />
               Create Subgroup
             </button>
+            {user?.isAdmin && <button type="button" onClick={()=>{setTransferSource(undefined);setShowTransferProducts(true);}} className="rounded-xl bg-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/30">Transfer products</button>}
             <ProductionExcelUpload onUploadComplete={handleRefresh} />
           </div>
         </div>
@@ -1171,6 +1176,7 @@ const Production = () => {
                           </span>
                         </button>
 
+                        {user?.isAdmin && section.products.length>0 && <button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setTransferSource(section.groupId);setShowTransferProducts(true);}}>Transfer products</button>}
                         {groupKey !== UNGROUPED_GROUP_KEY && <><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setNewGroupParent(groupKey);setShowCreateGroupForm(true);}}>+ Subgroup</button><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>setGroupToPlace({id:groupKey,name:section.groupName})}>Place group</button></>}
                         {groupKey !== UNGROUPED_GROUP_KEY && (
                           <button
@@ -1294,6 +1300,8 @@ const Production = () => {
           onSuccess={handleCreateGroupSuccess}
         />
       )}
+
+      {showTransferProducts && <TransferProductionProductsModal sections={groupedProducts} initialSource={transferSource} onClose={()=>setShowTransferProducts(false)} onSuccess={(count)=>{setSuccessMessage(`${count} products transferred successfully.`);void fetchProductionList();}} />}
 
       {productToMove && (
         <MoveProductModal

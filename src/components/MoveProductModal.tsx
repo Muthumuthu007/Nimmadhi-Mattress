@@ -1,3 +1,4 @@
+import {productionGroupPath,hasProductionMainParent} from '../utils/productionHierarchy';
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, MoveRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { productGroupApi, ProductGroup } from '../utils/productionApi';
@@ -38,18 +39,14 @@ export const MoveProductModal: React.FC<MoveProductModalProps> = ({
 
     const fetchGroups = async () => {
       try {
-        const response = await productGroupApi.getGroups();
+        const response = await productGroupApi.getHierarchy();
         const data = response.data;
         const groupsArray: ProductGroup[] = Array.isArray(data)
           ? data
           : (data?.groups || []);
 
         if (!cancelled) {
-          // Exclude the product's current group from selectable targets
-          const filtered = groupsArray.filter(
-            g => g.group_id !== sourceGroupId
-          );
-          setAvailableGroups(filtered);
+          setAvailableGroups(groupsArray);
         }
       } catch {
         if (!cancelled) {
@@ -93,6 +90,7 @@ export const MoveProductModal: React.FC<MoveProductModalProps> = ({
 
   if (!isOpen) return null;
 
+  const targetGroups = availableGroups.filter(group=>group.group_id!==sourceGroupId&&group.group_kind!=='MAIN'&&hasProductionMainParent(group,availableGroups));
   const selectedGroup = availableGroups.find(g => g.group_id === selectedTargetGroupId);
 
   return (
@@ -163,7 +161,7 @@ export const MoveProductModal: React.FC<MoveProductModalProps> = ({
                 <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                 Loading groups…
               </div>
-            ) : availableGroups.length === 0 && !moveError ? (
+            ) : targetGroups.length === 0 && !moveError ? (
               <div className="px-3 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-500 dark:text-gray-400">
                 No other groups available.
               </div>
@@ -179,9 +177,9 @@ export const MoveProductModal: React.FC<MoveProductModalProps> = ({
                 className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
               >
                 <option value="">Select target group…</option>
-                {availableGroups.map(group => (
+                {targetGroups.map(group => (
                   <option key={group.group_id} value={group.group_id}>
-                    {group.name}
+                    {productionGroupPath(group,availableGroups)}
                   </option>
                 ))}
               </select>

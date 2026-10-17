@@ -296,6 +296,8 @@ export const productGroupApi = {
         });
     },
 
+    transferProducts: (productIds: string[], targetGroupId: string, sourceGroupId: string | null) => apiClient.post<{moved_product_ids:string[];already_in_target_ids:string[];processed_product_ids:string[];moved_count:number}>('/api/production/groups/transfer-products/', {product_ids:productIds, target_group_id:targetGroupId, source_group_id:sourceGroupId}),
+
     moveProduct: (productId: string, targetGroupId: string, sourceGroupId: string | null) => {
         return apiClient.post<MoveProductResponse>('/api/production/groups/move-product/', {
             product_id: productId,
