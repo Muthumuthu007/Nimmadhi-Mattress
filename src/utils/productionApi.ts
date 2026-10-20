@@ -15,6 +15,7 @@ export interface ProductionRecord {
     efficiency: number;
     downtime_minutes: number;
     remarks?: string;
+    mrp?: number | null;
     status?: string;
 }
 
@@ -227,6 +228,7 @@ export interface ProductionProduct {
     transport_cost?: number;
     other_cost?: number;
     remarks?: string;
+    mrp?: number | null;
     created_at?: string;
     group_id?: string | null;
     group_name?: string | null;

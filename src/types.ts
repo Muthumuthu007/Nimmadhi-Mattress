@@ -48,6 +48,7 @@ export interface Product {
   groupId?: string | null;
   groupName?: string | null;
   remarks?: string;
+  mrp?: number | null;
 }
 
 /** A single section from the API's grouped_products response */

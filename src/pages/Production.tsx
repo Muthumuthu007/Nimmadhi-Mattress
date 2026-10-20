@@ -171,7 +171,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
         </div>
         <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <div className="flex-1 sm:flex-initial text-left sm:text-right">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Cost</div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Production Cost</div>
             <div className="text-lg sm:text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
               ₹{Number(product.totalCost || (
                 Number(product.productionCostTotal) +
@@ -182,10 +182,11 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
               )).toFixed(2)}
             </div>
           </div>
+          <div className="text-left sm:text-right min-w-20"><div className="text-xs text-gray-500 dark:text-gray-400 mb-1">MRP</div><div className="text-lg font-bold text-amber-600 dark:text-amber-300">{product.mrp == null ? 'Nil' : `₹${Number(product.mrp).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}`}</div></div>
           <button
             onClick={() => onEditDetails(product)}
             className="flex-shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 p-2 sm:p-3 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-200 shadow-sm hover:shadow-md"
-            title="Edit product name and remarks"
+            title="Edit product name, remarks and MRP"
           >
             <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
@@ -257,7 +258,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
                   <span className="font-bold text-purple-900 dark:text-purple-200 text-right flex-shrink-0">₹{Number(product.productionCostTotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-xs sm:text-sm pt-2 border-t border-purple-300 dark:border-purple-700 gap-2">
-                  <span className="text-purple-700 dark:text-purple-400 font-bold break-words">Total Cost:</span>
+                  <span className="text-purple-700 dark:text-purple-400 font-bold break-words">Production Cost:</span>
                   <span className="font-bold text-purple-900 dark:text-purple-200 text-right flex-shrink-0">₹{Number(product.totalCost || (
                     Number(product.productionCostTotal) +
                     Number(product.laborCost || 0) +
@@ -321,6 +322,7 @@ interface EditProductDetailsModalProps {
 
 const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ product, username, onClose, onSuccess }) => {
   const [productName, setProductName] = useState(product.name);
+  const [mrp, setMrp] = useState(product.mrp == null ? '' : String(product.mrp));
   const [remarks, setRemarks] = useState(product.remarks || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -336,6 +338,7 @@ const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ produ
         username,
         product_name: productName.trim(),
         remarks: remarks.trim(),
+        mrp: mrp.trim() || null,
       });
       onSuccess();
     } catch (requestError: any) {
@@ -349,12 +352,13 @@ const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ produ
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
     <form onSubmit={save} className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-gray-800">
       <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-        <div><h2 className="text-lg font-bold text-gray-900 dark:text-white">Edit product details</h2><p className="mt-0.5 text-sm text-gray-500">Update the product name or its internal remark.</p></div>
+        <div><h2 className="text-lg font-bold text-gray-900 dark:text-white">Edit product details</h2><p className="mt-0.5 text-sm text-gray-500">Update the product name, internal remark or retail MRP.</p></div>
         <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Close"><X className="h-5 w-5 text-gray-500" /></button>
       </div>
       <div className="space-y-4 px-6 py-5">
         {error && <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</div>}
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Product name<input required maxLength={200} value={productName} onChange={(event) => setProductName(event.target.value)} className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></label>
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">MRP (₹) <span className="font-normal">(optional)</span><input type="number" min="0.01" step="0.01" value={mrp} onChange={event=>setMrp(event.target.value)} className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white" placeholder="Leave blank if not set" /></label>
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Remarks <span className="font-normal text-gray-400">(optional)</span><textarea rows={4} maxLength={1000} value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Add a note about this product" className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></label>
       </div>
       <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-800"><button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</button><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? 'Saving…' : 'Save details'}</button></div>
@@ -592,7 +596,7 @@ const Production = () => {
   const handleDetailsSaved = async () => {
     setSelectedProductForEdit(null);
     await fetchProductionList();
-    setSuccessMessage('Product name and remarks updated successfully!');
+    setSuccessMessage('Product name, remarks and MRP updated successfully!');
   };
 
   const handleMoveClick = useCallback((
@@ -1093,7 +1097,7 @@ const Production = () => {
                 <option value="name" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Product Name</option>
                 <option value="maxProduce" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Max Produce</option>
                 <option value="cost" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Production Cost</option>
-                <option value="totalCost" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Total Cost</option>
+                <option value="totalCost" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Production Cost</option>
                 <option value="laborCost" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Labor Cost</option>
                 <option value="wastage" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Wastage %</option>
                 <option value="date" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Date Created</option>

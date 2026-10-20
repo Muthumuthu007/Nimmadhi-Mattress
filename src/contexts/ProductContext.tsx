@@ -77,6 +77,7 @@ const mapRawProduct = (
     groupId: groupOverride ? groupOverride.groupId : (product.group_id ?? null),
     groupName: groupOverride ? groupOverride.groupName : (product.group_name ?? null),
     remarks: product.remarks || '',
+    mrp: product.mrp == null ? null : Number(product.mrp),
   } as Product;
 };
 

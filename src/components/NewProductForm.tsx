@@ -11,6 +11,7 @@ interface Product {
   id: string;
   name: string;
   remarks?: string;
+  mrp?: number | null;
   materials: Array<{ materialName: string; quantity: number }>;
   maxProduce: number;
   productionCostBreakdown: Record<string, number>;
@@ -40,6 +41,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
   const [product, setProduct] = useState({
     name: '',
     remarks: '',
+    mrp: '',
     materials: [] as Array<{ materialName: string; quantity: string }>,
     wastage_percent: '',
     transport_cost: '',
@@ -255,6 +257,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
       const payload = {
         product_name: product.name,
         remarks: product.remarks.trim(),
+        mrp: product.mrp.trim() || null,
         username: user.username,
         group_id: selectedGroupId,
         stock_needed: stockNeeded,
@@ -278,6 +281,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         const newProduct: Product = {
           id: responseData.product_id,
           name: responseData.product_name,
+          mrp: responseData.mrp == null ? null : Number(responseData.mrp),
+          remarks: responseData.remarks || product.remarks,
           materials: product.materials.map(mat => ({
             materialName: mat.materialName,
             quantity: Number(mat.quantity)
@@ -308,6 +313,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         setProduct({
           name: '',
           remarks: '',
+    mrp: '',
           materials: [],
           wastage_percent: '',
           transport_cost: '',
@@ -391,6 +397,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
             </div>
 
             <div>
+              <label htmlFor="product-mrp" className="block text-sm font-medium text-gray-700 dark:text-gray-300">MRP (₹) (optional)</label><input id="product-mrp" type="number" min="0.01" step="0.01" value={product.mrp} onChange={e=>setProduct(prev=>({...prev,mrp:e.target.value}))} placeholder="Leave blank if not set" className="mt-1 mb-4 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
               <label htmlFor="product-remarks" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Remarks <span className="text-gray-400">(optional)</span></label>
               <textarea
                 id="product-remarks"
