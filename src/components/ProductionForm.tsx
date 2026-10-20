@@ -142,8 +142,9 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
     const normalizedQuery = normalizeString(searchQuery);
     const normalizedName = normalizeString(product.name || '');
     const normalizedId = normalizeString(product.id || '');
+    const normalizedRemarks = normalizeString(product.remarks || '');
 
-    return normalizedName.includes(normalizedQuery) || normalizedId.includes(normalizedQuery);
+    return normalizedName.includes(normalizedQuery) || normalizedId.includes(normalizedQuery) || normalizedRemarks.includes(normalizedQuery);
   });
 
   // Handle clicking outside to close dropdown
@@ -235,7 +236,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <span>
-                {selectedProductDetails ? selectedProductDetails.name : 'Choose a product...'}
+                {selectedProductDetails ? <>{selectedProductDetails.name}{selectedProductDetails.remarks?.trim() && <span className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap break-words"> — Remarks: {selectedProductDetails.remarks.trim()}</span>}</> : 'Choose a product...'}
               </span>
               {isDropdownOpen ? (
                 <ChevronUp className="h-4 w-4 text-gray-400" />
@@ -254,7 +255,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                     <input
                       type="text"
                       className="pl-10 pr-4 py-2 w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300"
-                      placeholder="Search products..."
+                      placeholder="Search products or remarks..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       aria-label="Search products"
@@ -282,7 +283,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                         disabled={false}
                       >
                         <div className="flex justify-between items-center">
-                          <span>{product.name}</span>
+                          <span className="min-w-0 whitespace-pre-wrap break-words">{product.name}{product.remarks?.trim() && <span className="text-amber-700 dark:text-amber-300"> — Remarks: {product.remarks.trim()}</span>}</span>
 
                         </div>
                       </button>
