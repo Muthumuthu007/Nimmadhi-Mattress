@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileMinus2, RefreshCcw, Undo2 } from 'lucide-react';
 import { handleApiError } from '../utils/api';
-import { CreditNoteMaterialPreview, CreditNoteReversalResponse, CreditNoteSummary, productionApi, ProductionProduct } from '../utils/productionApi';
+import { CreditNoteMaterialPreview, CreditNoteReversalResponse, CreditNoteSummary, productionApi, ProductionProduct, ReplacementReturn } from '../utils/productionApi';
 
 const newCreditNoteKey = () => `credit-note-${crypto.randomUUID()}`;
 const newCreditNoteUndoKey = () => `undo-credit-note-${crypto.randomUUID()}`;
 
 export default function CreditNote() {
   const [products, setProducts] = useState<ProductionProduct[]>([]);
+  const [returns, setReturns] = useState<ReplacementReturn[]>([]);
+  const [returnCase, setReturnCase] = useState<ReplacementReturn | null>(null);
+  const [receiptNotes, setReceiptNotes] = useState('');
   const [productId, setProductId] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +49,17 @@ export default function CreditNote() {
     }
   };
 
-  useEffect(() => { loadProducts(); loadCreditNotes(); }, []);
+  const loadReturns = async () => {
+    try { const response = await productionApi.replacementReturns(); setReturns(response.data.returns || []); }
+    catch (err) { setError(handleApiError(err)); }
+  };
+  const receiveReturn = async (entry: ReplacementReturn) => {
+    if (!receiptNotes.trim()) { setError('Enter the physical receipt inspection notes.'); return; }
+    setSubmitting(true); setError('');
+    try { await productionApi.receiveReplacementReturn(entry.caseId, receiptNotes); setReceiptNotes(''); await loadReturns(); }
+    catch (err) { setError(handleApiError(err)); } finally { setSubmitting(false); }
+  };
+  useEffect(() => { loadProducts(); loadCreditNotes(); loadReturns(); }, []);
 
   useEffect(() => {
     if (!productId) {
@@ -88,8 +101,9 @@ export default function CreditNote() {
     setError('');
     setResult(null);
     try {
-      const response = await productionApi.creditNoteReversal(selectedProduct.product_id, excludedMaterialIds, newCreditNoteKey());
+      const response = await productionApi.creditNoteReversal(selectedProduct.product_id, excludedMaterialIds, returnCase ? `replacement-return-${returnCase.caseId}` : newCreditNoteKey(), returnCase?.caseId);
       setResult(response.data);
+      if (returnCase) { setReturnCase(null); setProductId(''); await loadReturns(); }
       await Promise.all([loadProducts(), loadCreditNotes()]);
     } catch (err) {
       setError(handleApiError(err));
@@ -128,14 +142,30 @@ export default function CreditNote() {
       {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">{error}</div>}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <h2 className="text-lg font-semibold">Customer replacement returns</h2>
+        <p className="my-2 text-sm">Original beds returned through Godown. Physical receipt does not restore raw materials; review and confirm the credit note separately.</p>
+        <button onClick={loadReturns} disabled={submitting} className="rounded-lg border px-3 py-2">Refresh returns</button>
+        <div className="mt-4 grid gap-4">{returns.length === 0 ? <p>No replacement returns.</p> : returns.map(entry => <article key={entry.caseId} className="min-w-0 rounded-xl border p-4 break-words">
+          <h3 className="font-semibold">Returned bed: {entry.productName}</h3>
+          <p>Replacement bed: {entry.replacementProductName}</p>
+          <p>{entry.customerName} · {entry.customerPhone}<br/>{entry.customerAddress}</p>
+          <p>Invoice: {entry.billNo || entry.saleReferenceId} · {entry.saleDate} · Unit {entry.unitNumber}<br/>Outlet: {entry.outletId} · Godown: {entry.godownId}<br/>Case: {entry.caseId}</p>
+          <p>Reason: {entry.reason}<br/>Inspection: {entry.inspectionNotes}</p>
+          <p className="my-2 font-semibold">{entry.returnStatus.replace(/_/g, ' ')}{entry.creditNoteId ? ` · Credit note ${entry.creditNoteId}` : ''}</p>
+          {entry.processingStatus === 'PROCESSING' ? <p role="status">Credit-note processing started. Do not create another note; ask the administrator to check completion if it remains pending.</p> : entry.returnStatus === 'TO_INVENTORY' ? <div className="grid gap-2"><label>Physical receipt inspection notes<input className="mt-1 w-full rounded border bg-transparent p-2" value={receiptNotes} onChange={event => setReceiptNotes(event.target.value)}/></label><button disabled={submitting || !receiptNotes.trim()} onClick={() => receiveReturn(entry)} className="rounded-lg bg-indigo-600 px-4 py-2 text-white">Confirm original bed received</button></div> : entry.returnStatus === 'AT_INVENTORY' ? <button disabled={submitting} onClick={() => {setReturnCase(entry); setProductId(entry.productId); setError('');}} className="rounded-lg bg-rose-600 px-4 py-2 text-white">Review raw materials for this return</button> : null}
+        </article>)}</div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div className="flex items-center justify-between gap-3">
           <div><h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reverse a finished product</h2><p className="mt-1 text-sm text-gray-500">Review its raw materials first. Keep materials that can be returned; mark damaged materials so they are excluded.</p></div>
           <button onClick={loadProducts} disabled={loading || submitting} className="inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"><RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
         </div>
 
+        {returnCase && <div className="mt-4 rounded border border-indigo-400 p-3"><strong>Customer replacement return · {returnCase.customerName}</strong><p>{returnCase.productName} · Case {returnCase.caseId}</p><button disabled={submitting} onClick={() => {setReturnCase(null); setProductId('');}} className="mt-2 rounded border px-3 py-2">Cancel return selection</button></div>}
         <div className="mt-6 grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Finished product
-            <select value={productId} onChange={(event) => setProductId(event.target.value)} disabled={loading || submitting} className="mt-1 w-full rounded-lg border bg-transparent px-3 py-2.5 text-gray-900 dark:border-gray-600 dark:text-white">
+            <select value={productId} onChange={(event) => setProductId(event.target.value)} disabled={loading || submitting || Boolean(returnCase)} className="mt-1 w-full rounded-lg border bg-transparent px-3 py-2.5 text-gray-900 dark:border-gray-600 dark:text-white">
               <option value="">{loading ? 'Loading products…' : 'Choose a product'}</option>
               {products.map((product) => <option key={product.product_id} value={product.product_id}>{product.product_name}</option>)}
             </select>
@@ -160,7 +190,7 @@ export default function CreditNote() {
 
       {result && <section role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30"><div className="flex items-start justify-between gap-4"><div className="flex items-start gap-3"><CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" /><div><h2 className="font-semibold text-emerald-900 dark:text-emerald-100">Credit note confirmed — {result.product_name}</h2><p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">One unit was reversed and the following raw materials were returned to stock.</p></div></div><button onClick={() => undoReversal(result)} disabled={undoing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300"><Undo2 className="h-4 w-4" />{undoing ? 'Undoing…' : 'Undo credit note'}</button></div><ul className="mt-5 divide-y divide-emerald-200 rounded-xl border border-emerald-200 bg-white/70 dark:divide-emerald-900 dark:border-emerald-900 dark:bg-gray-900/30">{result.raw_materials_restored.map((material) => <li key={material.material_id} className="flex justify-between gap-4 px-4 py-3 text-sm"><span className="font-medium text-gray-900 dark:text-white">{material.material_name}</span><span className="text-emerald-700 dark:text-emerald-300">+{material.quantity_restored}</span></li>)}</ul>{result.raw_materials_excluded?.length ? <p className="mt-4 text-sm text-rose-700 dark:text-rose-300">Not returned because marked damaged: {result.raw_materials_excluded.map((material) => material.material_name).join(', ')}.</p> : null}</section>}
 
-      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"><div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"><div><h2 className="text-lg font-semibold text-gray-900 dark:text-white">Active credit notes</h2><p className="mt-1 text-sm text-gray-500">Undo any completed credit note from this list.</p></div><button onClick={loadCreditNotes} disabled={undoing} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700">Refresh list</button></div>{activeNotes.length === 0 ? <p className="px-6 py-8 text-sm text-gray-500">No active credit notes.</p> : <ul className="divide-y divide-gray-200 dark:divide-gray-700">{activeNotes.map((note) => <li key={note.credit_note_id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-gray-900 dark:text-white">{note.product_name}</p><p className="mt-1 text-xs text-gray-500">Credit note: {note.credit_note_id} · {note.reversed_at ? new Date(note.reversed_at).toLocaleString() : 'Date unavailable'}</p></div><button onClick={() => undoReversal(note)} disabled={undoing} className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:text-rose-300"><Undo2 className="h-4 w-4" />{undoing ? 'Undoing…' : 'Undo'}</button></li>)}</ul>}</section>
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"><div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"><div><h2 className="text-lg font-semibold text-gray-900 dark:text-white">Active credit notes</h2><p className="mt-1 text-sm text-gray-500">Undo any completed credit note from this list.</p></div><button onClick={loadCreditNotes} disabled={undoing} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700">Refresh list</button></div>{activeNotes.length === 0 ? <p className="px-6 py-8 text-sm text-gray-500">No active credit notes.</p> : <ul className="divide-y divide-gray-200 dark:divide-gray-700">{activeNotes.map((note) => <li key={note.credit_note_id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-gray-900 dark:text-white">{note.product_name}</p><p className="mt-1 text-xs text-gray-500">{note.after_sales ? `Replacement return: ${note.after_sales.customerName} · Case ${note.after_sales.caseId} · ` : ''}Credit note: {note.credit_note_id} · {note.reversed_at ? new Date(note.reversed_at).toLocaleString() : 'Date unavailable'}</p></div><button onClick={() => undoReversal(note)} disabled={undoing} className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:text-rose-300"><Undo2 className="h-4 w-4" />{undoing ? 'Undoing…' : 'Undo'}</button></li>)}</ul>}</section>
     </main>
   );
 }

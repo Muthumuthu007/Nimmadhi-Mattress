@@ -65,6 +65,13 @@ export interface CreditNoteUndoResponse {
     undone_at: string;
 }
 
+export interface ReplacementReturn {
+    caseId: string; saleId: string; saleReferenceId: string; saleDate: string; billNo: string;
+    productId: string; productName: string; replacementProductName: string; unitNumber: number;
+    customerName: string; customerPhone: string; customerAddress: string; outletId: string; godownId: string;
+    reason: string; inspectionNotes: string; returnStatus: string; creditNoteId?: string; processingStatus?: string;
+}
+
 export interface CreditNoteSummary {
     credit_note_id: string;
     product_id: string;
@@ -73,6 +80,7 @@ export interface CreditNoteSummary {
     raw_materials_restored: CreditNoteReversalResponse['raw_materials_restored'];
     reversed_at: string;
     created_by?: string;
+    after_sales?: ReplacementReturn;
 }
 
 // Production API wrappers
@@ -123,16 +131,19 @@ export const productionApi = {
         return apiClient.post<ProductionResponse>('/api/production/undo/', data);
     },
 
+    replacementReturns: () => apiClient.get<{returns: ReplacementReturn[]}>('/api/production/credit-note/replacement-returns/'),
+    receiveReplacementReturn: (caseId: string, notes: string) => apiClient.post('/api/production/credit-note/replacement-returns/', {caseId, notes}),
+
     creditNoteMaterials: (productId: string) => {
         return apiClient.get<CreditNoteMaterialPreview>('/api/production/credit-note/materials/', {
             params: { product_id: productId },
         });
     },
 
-    creditNoteReversal: (productId: string, excludedMaterialIds: string[], idempotencyKey: string) => {
+    creditNoteReversal: (productId: string, excludedMaterialIds: string[], idempotencyKey: string, caseId?: string) => {
         return apiClient.post<CreditNoteReversalResponse>(
             '/api/production/credit-note/reversal/',
-            { product_id: productId, excluded_material_ids: excludedMaterialIds },
+            { product_id: productId, excluded_material_ids: excludedMaterialIds, ...(caseId ? {after_sales_case_id: caseId} : {}) },
             { headers: { 'Idempotency-Key': idempotencyKey } },
         );
     },
