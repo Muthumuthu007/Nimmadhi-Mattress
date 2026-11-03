@@ -13,8 +13,8 @@ test('decimal and customized sizes are retained and month format matches sample'
 });
 test('print document includes full label rather than extracting QR only',()=>{
  const markup='<div class="unit-product-label">ANANDHAM FOAM MEMORY Rs. 42,493.00</div>';
- const html=unitLabelPrintDocument(markup,70,100);assert.ok(html.includes(markup));assert.ok(html.includes('@page{size:70mm 100mm'));assert.ok(html.includes('do not fit this label size'));assert.ok(!html.includes('overflow: hidden'));
+ const html=unitLabelPrintDocument(markup,100,50);assert.ok(html.includes(markup));assert.ok(html.includes('@page{size:100mm 50mm'));assert.ok(html.includes('do not fit this label size'));assert.ok(html.includes('height:50mm'));assert.ok(html.includes('page-break-inside:avoid'));assert.ok(!html.includes('overflow: hidden'));
 });
 test('invalid paper sizes are rejected',()=>{
- for(const [w,h] of [[0,100],[70,0],[NaN,100],[201,100],[70,201]])assert.throws(()=>unitLabelPrintDocument('label',w,h));
+ for(const [w,h] of [[0,50],[100,0],[NaN,50],[201,50],[100,151],[39,80]])assert.throws(()=>unitLabelPrintDocument('label',w,h));
 });
