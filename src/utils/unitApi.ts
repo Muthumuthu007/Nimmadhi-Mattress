@@ -1,5 +1,7 @@
 import { apiClient } from './api';
 
+export interface UnitLabelDetails { commodity:string;quality:string;size:string;manufacturing_month:string;mrp:string; }
+
 export type UnitStatus = 'READY_FOR_DISPATCH' | 'IN_TRANSIT' | 'RECEIVED';
 
 export interface ProductUnit {
@@ -18,6 +20,7 @@ export interface UnitGenerationResponse {
   destination_id: string | null;
   generated_at: string;
   units: ProductUnit[];
+  label_details?:UnitLabelDetails;
 }
 
 const withKey = (idempotencyKey: string) => ({
@@ -26,10 +29,10 @@ const withKey = (idempotencyKey: string) => ({
 
 /** APIs for a single physical, QR-labelled product unit. */
 export const unitApi = {
-  generate: (productId: string, quantity: number, idempotencyKey: string) =>
+  generate: (productId: string, quantity: number, idempotencyKey: string,labelDetails?:UnitLabelDetails) =>
     apiClient.post<UnitGenerationResponse>(
       `/api/production/${encodeURIComponent(productId)}/units/generate/`,
-      { quantity },
+      { quantity,...(labelDetails?{label_details:labelDetails}:{}) },
       withKey(idempotencyKey),
     ),
   listForProduct: (productId: string) =>
