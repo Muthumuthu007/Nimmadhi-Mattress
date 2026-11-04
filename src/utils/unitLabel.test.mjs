@@ -18,3 +18,16 @@ test('print document includes full label rather than extracting QR only',()=>{
 test('invalid paper sizes are rejected',()=>{
  for(const [w,h] of [[0,50],[100,0],[NaN,50],[201,50],[100,151],[39,80]])assert.throws(()=>unitLabelPrintDocument('label',w,h));
 });
+
+test('89 by 45 stock rotates a 45 by 89 value column entirely inside one page',()=>{
+ const html=unitLabelPrintDocument('<div class="unit-product-label"></div>',89,45);
+ assert.ok(html.includes('@page{size:89mm 45mm;margin:0}'));
+ assert.ok(html.includes('width:45mm;height:89mm'));
+ assert.ok(html.includes('transform:translateX(89mm) rotate(90deg)'));
+ assert.ok(html.includes('transform-origin:top left'));
+});
+test('portrait stock does not rotate a second time',()=>{
+ const html=unitLabelPrintDocument('label',45,89);
+ assert.ok(html.includes('width:45mm;height:89mm'));
+ assert.ok(!html.includes('rotate(90deg)'));
+});
