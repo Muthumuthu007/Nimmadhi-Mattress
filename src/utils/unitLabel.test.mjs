@@ -13,7 +13,7 @@ test('decimal and customized sizes are retained and month format matches sample'
 });
 test('print document includes full label rather than extracting QR only',()=>{
  const markup='<div class="unit-product-label">ANANDHAM FOAM MEMORY Rs. 42,493.00</div>';
- const html=unitLabelPrintDocument(markup,100,50);assert.ok(html.includes(markup));assert.ok(html.includes('@page{size:100mm 50mm'));assert.ok(html.includes('do not fit this label size'));assert.ok(html.includes('height:50mm'));assert.ok(html.includes('page-break-inside:avoid'));assert.ok(!html.includes('overflow: hidden'));
+ const html=unitLabelPrintDocument(markup,100,50);assert.ok(html.includes(markup));assert.ok(html.includes('@page{size:100mm 50mm'));assert.ok(html.includes('do not fit this label size'));assert.ok(html.includes('height:50mm'));assert.ok(html.includes('page-break-inside:avoid'));assert.ok(html.includes('class="unit-label-page"'));
 });
 test('invalid paper sizes are rejected',()=>{
  for(const [w,h] of [[0,50],[100,0],[NaN,50],[201,50],[100,151],[39,80]])assert.throws(()=>unitLabelPrintDocument('label',w,h));
@@ -30,4 +30,11 @@ test('portrait stock does not rotate a second time',()=>{
  const html=unitLabelPrintDocument('label',45,89);
  assert.ok(html.includes('width:45mm;height:89mm'));
  assert.ok(!html.includes('rotate(90deg)'));
+});
+
+test('rotated layout is contained by a physical page to prevent a second browser sheet',()=>{
+ const html=unitLabelPrintDocument('<div class="unit-product-label">values</div>',89,45);
+ assert.ok(html.includes('.unit-label-page{position:relative;width:89mm;height:45mm;overflow:hidden;'));
+ assert.ok(html.includes('<body><div class="unit-label-page"><div class="unit-product-label">values</div></div>'));
+ assert.ok(html.includes('label.scrollHeight>label.clientHeight+2'));
 });
