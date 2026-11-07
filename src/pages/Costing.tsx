@@ -19,6 +19,8 @@ import { formatApiDate } from '../utils/dateUtils';
 import { RawMaterial } from '../types';
 import { CostingSkeleton } from '../components/skeletons/CostingSkeleton';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
+import MaterialCostLine from '../components/MaterialCostLine';
+import type {CostMaterial} from '../utils/materialCost';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,7 @@ const parseQty = (val: string | number): number => {
 
 interface CostingCardProps {
   product: CastingProductResponse;
+  materials:CostMaterial[];
   onMove: (id: string) => void;
   onEdit: (product: CastingProductResponse) => void;
   onDelete: (id: string, name: string) => void;
@@ -43,7 +46,7 @@ interface CostingCardProps {
 }
 
 const CostingCard: React.FC<CostingCardProps> = ({
-  product, onMove, onEdit, onDelete, isMoving = false,
+  product, materials, onMove, onEdit, onDelete, isMoving = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const materialEntries = Object.entries(product.stock_needed ?? {});
@@ -70,17 +73,15 @@ const CostingCard: React.FC<CostingCardProps> = ({
         <div>
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Materials</span>
-            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Backend-calculated</span>
+            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Saved calculation</span>
           </div>
           {materialEntries.length === 0 ? (
             <p className="text-sm text-gray-400 italic">No materials calculated</p>
           ) : (
             <div className="space-y-1">
               {visibleMaterials.map(([name, qty]) => (
-                <div key={name} className="flex justify-between items-center py-1 border-b border-gray-50 last:border-0">
-                  <span className="text-sm text-gray-700 truncate max-w-[65%]" title={name}>{name}</span>
-                  <span className="text-sm font-bold text-gray-900 tabular-nums">{parseQty(qty)}</span>
-                </div>
+                <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={product.production_cost_breakdown?.[name]} materials={materials}/>
+
               ))}
               {materialEntries.length > 4 && (
                 <button
@@ -103,6 +104,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
           </div>
         )}
 
+        <p className="text-xs text-gray-500">Rates shown are those used in this saved costing. Current purchase rates may differ.</p>
         {/* Cost Breakdown */}
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Cost Breakdown</p>
@@ -537,13 +539,11 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
                 <span className="font-bold text-green-800">Costing Created Successfully!</span>
               </div>
-              <p className="text-sm text-green-700 mb-3">Backend-calculated material quantities:</p>
+              <p className="text-sm text-green-700 mb-3">Required raw materials and their calculated costs:</p>
               <div className="space-y-1.5">
                 {Object.entries(result.stock_needed ?? {}).map(([name, qty]) => (
-                  <div key={name} className="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-green-100">
-                    <span className="text-sm font-medium text-gray-800">{name}</span>
-                    <span className="text-sm font-bold text-green-700">{parseQty(qty as string)}</span>
-                  </div>
+                  <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={result.production_cost_breakdown?.[name]} materials={availableMaterials}/>
+
                 ))}
               </div>
               <div className="mt-3 pt-3 border-t border-green-200 flex justify-between">
@@ -706,7 +706,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                               </div>
                               <div>
                                 <p className={`text-sm font-semibold ${isSelected ? 'text-orange-800' : 'text-gray-800'}`}>{m.name}</p>
-                                <p className="text-xs text-gray-400">Available: {m.available} {m.unit}</p>
+                                <p className="text-xs text-gray-400">Available: {m.available} {m.unit}</p><p className="text-xs text-gray-600">Current rate: {formatMoney(m.cost)} / {m.unit}</p>
                               </div>
                             </div>
                             <div className="text-right shrink-0">
@@ -751,6 +751,8 @@ const Costing: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
 
+  const [costMaterials,setCostMaterials]=useState<CostMaterial[]>([]);
+  useEffect(()=>{let active=true;apiClient.post('/api/stock/inventory/',{}).then(response=>{const data=response.data;const rows=Array.isArray(data)?data:(data.inventory || data.data?.inventory || []);if(active && Array.isArray(rows))setCostMaterials(rows.map(item=>({id:item.item_id,name:item.name,unit:item.unit})));}).catch(()=>{ /* Saved amounts remain visible if metadata is unavailable. */ });return ()=>{active=false;};},[]);
   const [castings, setCastings] = useState<CastingProductResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -929,6 +931,7 @@ const Costing: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredCastings.map(product => (
             <CostingCard
+              materials={costMaterials}
               key={product.product_id}
               product={product}
               onMove={handleMoveToProduction}

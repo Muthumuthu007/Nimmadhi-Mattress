@@ -38,3 +38,18 @@ test('rotated layout is contained by a physical page to prevent a second browser
  assert.ok(html.includes('<body><div class="unit-label-page"><div class="unit-product-label">values</div></div>'));
  assert.ok(html.includes('label.scrollHeight>label.clientHeight+2'));
 });
+
+test('batch printing contains each unique label once and breaks only between stickers',()=>{
+ const labels=['UNIT-ONE','UNIT-TWO','UNIT-THREE'].map(id=>`<div class="unit-product-label">${id}</div>`);
+ const html=unitLabelPrintDocument(labels,89,45);
+ assert.equal((html.match(/class="unit-label-page"/g)||[]).length,3);
+ for(const id of ['UNIT-ONE','UNIT-TWO','UNIT-THREE'])assert.equal(html.split(id).length-1,1);
+ assert.ok(html.includes('.unit-label-page:not(:last-child){break-after:page;page-break-after:always}'));
+ assert.ok(html.includes('height:auto;'));
+ assert.ok(html.includes('labels.length!==3'));
+ assert.ok(html.includes('labels.some(label=>'));
+});
+test('empty or partially missing batches cannot print',()=>{
+ assert.throws(()=>unitLabelPrintDocument([],89,45));
+ assert.throws(()=>unitLabelPrintDocument(['label',''],89,45));
+});
