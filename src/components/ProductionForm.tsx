@@ -7,6 +7,7 @@ import { productionApi } from '../utils/productionApi';
 import { AlertTriangle, RotateCcw, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import UndoProductionModal from './UndoProductionModal';
+import ProductionErrorNotice from './ProductionErrorNotice';
 import ProductionQRDialog from './ProductionQRDialog';
 import CustomProductionEditor,{CustomProductionSelection} from './CustomProductionEditor';
 
@@ -27,6 +28,10 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   const [quantity, setQuantity] = useState('1');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorNoticeOpen,setErrorNoticeOpen]=useState(false);
+  const [errorTarget,setErrorTarget]=useState('');
+  const notifyError=(message:string,target='')=>{setError(message);setErrorTarget(target);setErrorNoticeOpen(true);};
+  const goToMissingStep=()=>{setErrorNoticeOpen(false);requestAnimationFrame(()=>{const field=formTopRef.current?.querySelector<HTMLElement>(`[data-production-field="${errorTarget}"]`);field?.scrollIntoView({behavior:'smooth',block:'center'});field?.focus({preventScroll:true});});};
   const [insufficientMaterials, setInsufficientMaterials] = useState<InsufficientMaterial[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [qrEntry,setQREntry]=useState<ProductionResponse|null>(null);
@@ -59,23 +64,30 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct) return;
-    if(custom.enabled&&!custom.ready&&!customUncertain){setError('Calculate the custom-size materials and confirm you have reviewed all quantities.');return;}
+    if (!selectedProduct){notifyError('Select a product before starting production.','product');return;}
+    if(custom.enabled&&!custom.ready&&!customUncertain){
+      const missingDimension=['length','width','height'].find(key=>!custom.custom_size?.[key]?.trim() || !Number.isFinite(Number(custom.custom_size?.[key])) || Number(custom.custom_size?.[key])<=0 || Number(custom.custom_size?.[key])>1000);
+      if(missingDimension)notifyError('Enter valid length, width and thickness in inches, then click Calculate materials for custom size.',missingDimension);
+      else if(!custom.preview)notifyError('Click Calculate materials for custom size before confirming production.','calculate');
+      else if(Object.values(custom.material_quantities || {}).some(value=>!value.trim()||!Number.isFinite(Number(value))||Number(value)<0)||!Object.values(custom.material_quantities || {}).some(value=>Number(value)>0))notifyError('Enter valid material quantities before reviewing and confirming production.','material');
+      else notifyError('Tick “I have checked the quantities” below the material list before confirming production.','review');
+      return;
+    }
 
     if (!quantity || !Number.isSafeInteger(Number(quantity)) || Number(quantity) < 1) {
-      setError('Please enter a valid quantity.');
+      notifyError('Enter a whole production quantity of at least 1.','quantity');
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    setError(null);
+    setError(null);setErrorNoticeOpen(false);
     setSuccessMessage(null);
     setInsufficientMaterials([]);
 
     try {
       if (!selectedProductDetails) {
-        setError('Selected product details not found.');
+        notifyError('Selected product details not found.');
         setIsLoading(false);
         return;
       }
@@ -118,20 +130,20 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         formTopRef.current?.scrollIntoView({ behavior: 'smooth' });
         onProductionComplete();
       } else if (data && data.can_produce === false && data.insufficient_materials) {
-        setError(data.reason || 'Insufficient stock to complete production.');
+        notifyError(data.reason || 'Insufficient stock to complete production.');
         setInsufficientMaterials(data.insufficient_materials);
       } else {
-        setError(data?.message || 'Production failed. Please try again.');
+        notifyError(data?.message || 'Production failed. Please try again.');
       }
     } catch (error: any) {
       const errorData = error?.response?.data;
-      if(custom.enabled && (!error.response || error.response.status>=500)){setCustomUncertain(true);setError('Production confirmation was interrupted. Use Retry same production below. Details are locked to avoid a duplicate entry.');return;}
+      if(custom.enabled && (!error.response || error.response.status>=500)){setCustomUncertain(true);notifyError('Production confirmation was interrupted. Use Retry same production below. Details are locked to avoid a duplicate entry.');return;}
       if(customUncertain)setCustomUncertain(false);
       if (errorData && errorData.can_produce === false && errorData.insufficient_materials) {
-        setError(errorData.reason || 'Insufficient stock to complete production.');
+        notifyError(errorData.reason || 'Insufficient stock to complete production.');
         setInsufficientMaterials(errorData.insufficient_materials);
       } else {
-        setError(errorData?.error || errorData?.message || 'Production failed. Please try again.');
+        notifyError(errorData?.error || errorData?.message || 'Production failed. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -198,12 +210,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
 
       {qrEntry && <ProductionQRDialog key={qrEntry.push_id} entry={qrEntry} onClose={()=>setQREntry(null)}/>}
       {lastProduction?.push_id && <button type="button" onClick={()=>setQREntry(lastProduction)} className="mb-4 rounded border border-indigo-300 px-3 py-2 text-indigo-700 dark:text-indigo-200">QR labels for last production</button>}
-      {error && !insufficientMaterials.length && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md flex items-start">
-          <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-          <p>{error}</p>
-        </div>
-      )}
+      {error && errorNoticeOpen && <ProductionErrorNotice message={error} onClose={()=>setErrorNoticeOpen(false)} onResolve={errorTarget?goToMissingStep:undefined}/>}
 
       {successMessage && (
         <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-md">
@@ -243,14 +250,14 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         );
       })()}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form noValidate onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Product</label>
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
               className="flex justify-between items-center w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              data-production-field="product" onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <span>
                 {selectedProductDetails ? <>{selectedProductDetails.name}{selectedProductDetails.remarks?.trim() && <span className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap break-words"> — Remarks: {selectedProductDetails.remarks.trim()}</span>}</> : 'Choose a product...'}
@@ -349,12 +356,13 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label>
           <input
+            data-production-field="quantity"
             type="text"
             min="1"
             disabled={customUncertain||isLoading}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="mt-1 block h-11 w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             required
           />
         </div>
@@ -389,8 +397,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
 
         <button
           type="submit"
-          disabled={isLoading || !selectedProduct || Number(quantity) < 1}
-          className={`w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${(isLoading || !selectedProduct || Number(quantity) < 1)
+          disabled={isLoading}
+          className={`w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${isLoading
             ? 'opacity-50 cursor-not-allowed'
             : ''
             }`}
