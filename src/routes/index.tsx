@@ -24,9 +24,6 @@ import SignUp from '../pages/SignUp';
 import DispatchedDaily from '../pages/DispatchedDaily';
 import DispatchedWeekly from '../pages/DispatchedWeekly';
 import DispatchedMonthly from '../pages/DispatchedMonthly';
-import DispatchedDailyGrouped from '../pages/DispatchedDailyGrouped';
-import DispatchedWeeklyGrouped from '../pages/DispatchedWeeklyGrouped';
-import DispatchedMonthlyGrouped from '../pages/DispatchedMonthlyGrouped';
 import GrnDaily from '../pages/GrnDaily';
 import GrnWeekly from '../pages/GrnWeekly';
 import GrnMonthly from '../pages/GrnMonthly';
@@ -174,15 +171,15 @@ export const router = createBrowserRouter([
           },
           {
             path: 'daily-grouped',
-            element: <DispatchedDailyGrouped />,
+            element: <Navigate to="/dashboard/dispatched/daily" replace />,
           },
           {
             path: 'weekly-grouped',
-            element: <DispatchedWeeklyGrouped />,
+            element: <Navigate to="/dashboard/dispatched/weekly" replace />,
           },
           {
             path: 'monthly-grouped',
-            element: <DispatchedMonthlyGrouped />,
+            element: <Navigate to="/dashboard/dispatched/monthly" replace />,
           },
         ],
       },

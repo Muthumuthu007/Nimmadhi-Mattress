@@ -1,3 +1,4 @@
+import {groupDispatchRows,dispatchGroupTitle} from '../utils/dispatchGroups';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -60,9 +61,10 @@ const DispatchedDaily = () => {
     setIsDownloading(true);
     try {
       const header = [
-        'Product Name', 'Quantity Produced', 'Cost per Unit', 'Total Production Cost', 'Status', 'Dispatched By', 'Timestamp'
+        'Production Group / Subgroup', 'Product Name', 'Quantity Produced', 'Cost per Unit', 'Total Production Cost', 'Status', 'Dispatched By', 'Timestamp'
       ];
-      const rows = records.map(r => [
+      const rows = groupDispatchRows(records).flatMap(group=>group.rows).map(r => [
+        dispatchGroupTitle(r),
         r.product_name,
         r.quantity_produced,
         r.production_cost_per_unit,
@@ -72,8 +74,8 @@ const DispatchedDaily = () => {
         r.timestamp
       ]);
       // Optionally add summary at the top
-      const summaryHeader = ['Product Name', 'Total Quantity Dispatched'];
-      const summaryRows = summary.map(s => [s.product_name, s.total_quantity]);
+      const summaryHeader = ['Production Group / Subgroup', 'Product Name', 'Total Quantity Dispatched'];
+      const summaryRows = summary.map(s => [dispatchGroupTitle(s), s.product_name, s.total_quantity]);
       const ws = XLSX.utils.aoa_to_sheet([
         ['Summary'],
         summaryHeader,
@@ -123,6 +125,7 @@ const DispatchedDaily = () => {
       (statusFilter === 'ALL' || (r.status || '').toUpperCase() === statusFilter) &&
       (
         (r.product_name && r.product_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        dispatchGroupTitle(r).toLowerCase().includes(searchQuery.toLowerCase()) ||
         (r.product_id && r.product_id.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     )
@@ -287,8 +290,10 @@ const DispatchedDaily = () => {
           </button>
           {showSummary && (
             <div className="p-6">
+              {groupDispatchRows(summary).map(group=><section key={group.key} className="mb-6 last:mb-0">
+              <h3 className="mb-3 font-bold text-gray-900">{group.title}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {summary.map((s) => (
+                {group.rows.map((s) => (
                   <div key={JSON.stringify([s.product_id, !!s.is_custom_size, s.custom_size])} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -302,7 +307,7 @@ const DispatchedDaily = () => {
                     </div>
                   </div>
                 ))}
-              </div>
+              </div></section>)}
             </div>
           )}
         </div>
@@ -320,7 +325,12 @@ const DispatchedDaily = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {filteredRecords.map((record) => (
+          {groupDispatchRows(filteredRecords).map(group=><section key={group.key} className="space-y-4">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-700 dark:bg-indigo-900/30">
+              <h2 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">{group.title}</h2>
+              <p className="text-sm text-indigo-700 dark:text-indigo-200">{group.rows.length} production {group.rows.length===1?'entry':'entries'} · {group.rows.reduce((sum,row)=>sum+Number(row.quantity_produced || 0),0)} units</p>
+            </div>
+          {group.rows.map((record) => (
             <div
               key={record.push_id}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all p-6"
@@ -373,7 +383,7 @@ const DispatchedDaily = () => {
                 <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{record.username}</div>
               </div>
             </div>
-          ))}
+          ))}</section>)}
         </div>
       )}
       {/* Delete Confirmation Dialog */}
