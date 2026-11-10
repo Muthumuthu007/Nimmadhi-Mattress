@@ -63,12 +63,22 @@ const CostingCard: React.FC<CostingCardProps> = ({
               Created: {formatApiDate(product.created_at, 'd MMM yyyy')}
             </p>
           </div>
-          <span className="bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full">Draft</span>
+          <span className="bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full">{product.is_custom_production_record ? (product.production_status === 'ACTIVE' ? 'Already pushed to production' : product.production_status === 'UNDONE' ? 'Production undone' : 'Production status unavailable') : 'Draft'}</span>
         </div>
       </div>
 
       {/* Body */}
       <div className="p-5 flex-1 space-y-4">
+        {product.is_custom_production_record && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-gray-700 space-y-1">
+            <p className="font-semibold">Custom-size production</p>
+            <p>Original product: {product.source_product_name}</p>
+            <p>Custom size: {product.custom_size?.length} × {product.custom_size?.width} × {product.custom_size?.height} inches</p>
+            <p>Quantity produced: {product.quantity_produced}</p>
+            <p>Production total: {formatMoney(product.production_entry_total_cost)}</p>
+            <p className="text-xs">Saved material quantities below are per finished unit. {product.production_status === 'ACTIVE' ? 'Materials have already been deducted from stock.' : product.production_status === 'UNDONE' ? 'This production was undone; materials were restored.' : 'Check production history for the current stock deduction status.'}</p>
+          </div>
+        )}
         {/* Materials — Backend Calculated */}
         <div>
           <div className="flex items-center gap-1.5 mb-2">
@@ -127,14 +137,14 @@ const CostingCard: React.FC<CostingCardProps> = ({
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex justify-between items-center">
-            <span className="font-bold text-gray-700">Total Est. Cost</span>
+            <span className="font-bold text-gray-700">{product.is_custom_production_record ? 'Cost per finished unit' : 'Total Est. Cost'}</span>
             <span className="text-xl font-bold text-green-600">{formatMoney(product.total_cost)}</span>
           </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="px-5 pb-4 pt-1 grid grid-cols-3 gap-2">
+      {!product.is_custom_production_record && <div className="px-5 pb-4 pt-1 grid grid-cols-3 gap-2">
         <button
           onClick={() => onMove(product.product_id)}
           disabled={isMoving}
@@ -157,7 +167,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
           <Trash2 className="h-3.5 w-3.5" />
           Delete
         </button>
-      </div>
+      </div>}
     </div>
   );
 };

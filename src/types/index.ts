@@ -94,6 +94,9 @@ export interface ProductionResponse {
   push_id?: string;
   product_id?: string;
   quantity_produced?: number;
+  product_name?:string;
+  total_cost_per_unit?:number;
+  custom_size?:Record<string,number>;
   production_cost_per_unit?: number;
   total_production_cost?: number;
   total_cost?: number;

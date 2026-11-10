@@ -316,7 +316,7 @@ const DispatchedMonthly = () => {
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {summary.map((s) => (
-                  <div key={s.product_id} className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg border-2 border-teal-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div key={JSON.stringify([s.product_id, !!s.is_custom_size, s.custom_size])} className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg border-2 border-teal-200 p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs uppercase tracking-wider text-teal-700 font-semibold mb-1">Product</p>
@@ -355,6 +355,11 @@ const DispatchedMonthly = () => {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <div className="text-lg font-bold text-gray-900">{record.product_name}</div>
+                  {record.is_custom_size && <div className="mt-1 text-sm text-amber-700">
+                    <span className="font-semibold">Custom-size production</span>
+                    <p>Original product: {record.standard_product_name}</p>
+                    <p>Size: {record.custom_size?.length} × {record.custom_size?.width} × {record.custom_size?.height} inches</p>
+                  </div>}
                   <div className="text-xs text-gray-500 mt-1">
                     ID: {record.product_id} <br />
                     Push ID: {record.push_id}

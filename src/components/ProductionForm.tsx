@@ -7,6 +7,8 @@ import { productionApi } from '../utils/productionApi';
 import { AlertTriangle, RotateCcw, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import UndoProductionModal from './UndoProductionModal';
+import ProductionQRDialog from './ProductionQRDialog';
+import CustomProductionEditor,{CustomProductionSelection} from './CustomProductionEditor';
 
 interface ProductionFormProps {
   products: Product[];
@@ -19,11 +21,15 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
 }) => {
   const { user } = useAuth();
   const [selectedProduct, setSelectedProduct] = useState('');
+  const [custom,setCustom]=useState<CustomProductionSelection>({enabled:false,ready:false});
+  const [customUncertain,setCustomUncertain]=useState(false);
+  const customRequest=useRef<{signature:string;key:string;body:Record<string,unknown>}|null>(null);
   const [quantity, setQuantity] = useState('1');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [insufficientMaterials, setInsufficientMaterials] = useState<InsufficientMaterial[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [qrEntry,setQREntry]=useState<ProductionResponse|null>(null);
   const [lastProduction, setLastProduction] = useState<ProductionResponse | null>(null);
   const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -54,8 +60,9 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
+    if(custom.enabled&&!custom.ready&&!customUncertain){setError('Calculate the custom-size materials and confirm you have reviewed all quantities.');return;}
 
-    if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 1) {
+    if (!quantity || !Number.isSafeInteger(Number(quantity)) || Number(quantity) < 1) {
       setError('Please enter a valid quantity.');
       setIsLoading(false);
       return;
@@ -80,12 +87,15 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         Number(selectedProductDetails.wastageAmount || 0) +
         Number((selectedProductDetails as any).otherCost || 0)
       );
-      const response = await productionApi.push({
-        product_id: selectedProduct,
-        quantity: Number(quantity),
-        username: user.username,
-        production_cost_per_unit: newTotalCostPerUnit
-      });
+      let response;
+      if(custom.enabled || customUncertain){
+        if(!customUncertain){
+          const body={product_id:selectedProduct,quantity:Number(quantity),custom_size:custom.custom_size,material_quantities:custom.material_quantities,materials_reviewed:custom.materials_reviewed};
+          const signature=JSON.stringify(body);
+          if(customRequest.current?.signature!==signature)customRequest.current={signature,key:crypto.randomUUID(),body};
+        }
+        response=await productionApi.pushCustom(customRequest.current!.body,customRequest.current!.key);
+      }else response=await productionApi.push({product_id:selectedProduct,quantity:Number(quantity),username:user.username,production_cost_per_unit:newTotalCostPerUnit});
 
       const data = response.data;
       console.log('Production push response data:', data);
@@ -97,7 +107,10 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         data.message?.includes("successfully") ||
         (data as any).status === "success")) {
 
-        setLastProduction(data);
+        setCustomUncertain(false);customRequest.current=null;
+        const completed={...data,product_id:data.product_id || selectedProduct,product_name:data.product_name || selectedProductDetails.name};
+        setLastProduction(completed);
+        setQREntry(completed);
         // Robustly check for total_cost using multiple access methods and fallbacks
         const finalCost = data.total_cost ?? data['total_cost'] ?? data.total_production_cost ?? 0;
         console.log('finalCost selected:', finalCost);
@@ -112,11 +125,13 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
       }
     } catch (error: any) {
       const errorData = error?.response?.data;
+      if(custom.enabled && (!error.response || error.response.status>=500)){setCustomUncertain(true);setError('Production confirmation was interrupted. Use Retry same production below. Details are locked to avoid a duplicate entry.');return;}
+      if(customUncertain)setCustomUncertain(false);
       if (errorData && errorData.can_produce === false && errorData.insufficient_materials) {
         setError(errorData.reason || 'Insufficient stock to complete production.');
         setInsufficientMaterials(errorData.insufficient_materials);
       } else {
-        setError(errorData?.message || 'Production failed. Please try again.');
+        setError(errorData?.error || errorData?.message || 'Production failed. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -181,6 +196,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         </button>
       </div>
 
+      {qrEntry && <ProductionQRDialog key={qrEntry.push_id} entry={qrEntry} onClose={()=>setQREntry(null)}/>}
+      {lastProduction?.push_id && <button type="button" onClick={()=>setQREntry(lastProduction)} className="mb-4 rounded border border-indigo-300 px-3 py-2 text-indigo-700 dark:text-indigo-200">QR labels for last production</button>}
       {error && !insufficientMaterials.length && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md flex items-start">
           <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
@@ -200,9 +217,9 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
           <div className="mb-4 p-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-md transition-colors duration-300">
             <h3 className="font-medium text-indigo-800 dark:text-indigo-300 mb-2">Last Production Details</h3>
             <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              <p><span className="font-medium">Product ID:</span> {lastProduction.product_id}</p>
+              <p><span className="font-medium">Product:</span> {lastProduction.product_name || lastProduct?.name || lastProduction.product_id}</p>
               <p><span className="font-medium">Quantity:</span> {lastProduction.quantity_produced} units</p>
-              <p><span className="font-medium">Cost per Unit:</span> ₹{lastProduct ? (
+              <p><span className="font-medium">Cost per Unit:</span> ₹{lastProduction.total_cost_per_unit!=null?Number(lastProduction.total_cost_per_unit).toFixed(2):lastProduct ? (
                 Number(lastProduct.productionCostTotal) +
                 Number(lastProduct.laborCost || 0) +
                 Number(lastProduct.transportCost || 0) +
@@ -276,11 +293,11 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700`
                         }
                         onClick={() => {
-                          setSelectedProduct(product.id);
+                          setSelectedProduct(product.id);setCustom({enabled:false,ready:false});customRequest.current=null;
                           setIsDropdownOpen(false);
                           setSearchQuery('');
                         }}
-                        disabled={false}
+                        disabled={customUncertain||isLoading}
                       >
                         <div className="flex justify-between items-center">
                           <span className="min-w-0 whitespace-pre-wrap break-words">{product.name}{product.remarks?.trim() && <span className="text-amber-700 dark:text-amber-300"> — Remarks: {product.remarks.trim()}</span>}</span>
@@ -295,7 +312,9 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
           </div>
         </div>
 
-        {selectedProductDetails && (
+        {selectedProductDetails && <CustomProductionEditor key={selectedProduct} productId={selectedProduct} onChange={setCustom} disabled={isLoading||customUncertain}/>}
+
+        {selectedProductDetails && !custom.enabled && (
           <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md transition-colors duration-300">
             <h3 className="font-medium text-gray-700 dark:text-gray-200 mb-2">Product Details</h3>
             <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
@@ -332,7 +351,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
           <input
             type="text"
             min="1"
-            max={selectedProductDetails?.maxProduce || 1}
+            disabled={customUncertain||isLoading}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -340,7 +359,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
           />
         </div>
 
-        {selectedProductDetails && (
+        {selectedProductDetails && !custom.enabled && (
           <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-md transition-colors duration-300">
             <h3 className="font-medium text-indigo-700 dark:text-indigo-300 mb-2">Production Summary</h3>
             <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
@@ -366,6 +385,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
           </div>
         )}
 
+        {custom.enabled && custom.preview && <section className="rounded-lg bg-indigo-50 p-4 text-gray-900 dark:bg-indigo-900/30 dark:text-white"><h3 className="font-semibold">Custom production summary</h3><p>{custom.preview.product_name} · {quantity} units</p><p>Raw-material cost for this entry: ₹{(custom.preview.materials.reduce((sum,line)=>sum+Number(custom.material_quantities?.[line.material_id] || 0)*Number(line.rate),0)*Number(quantity || 0)).toFixed(2)}</p><p className="text-xs">Final cost includes wastage, labour, transport and other costs and is verified when production is confirmed.</p></section>}
+
         <button
           type="submit"
           disabled={isLoading || !selectedProduct || Number(quantity) < 1}
@@ -374,7 +395,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
             : ''
             }`}
         >
-          {isLoading ? 'Processing...' : 'Start Production'}
+          {isLoading ? 'Processing...' : customUncertain?'Retry same production':custom.enabled?'Confirm custom production':'Start Production'}
         </button>
       </form>
 

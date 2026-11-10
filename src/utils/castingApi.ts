@@ -54,6 +54,13 @@ export async function createCastingProduct(
 // ─── View / List ─────────────────────────────────────────────────────────────
 
 export interface CastingProductResponse {
+  is_custom_production_record?: boolean;
+  production_status?: string;
+  source_product_name?: string;
+  custom_size?: {length: number; width: number; height: number};
+  quantity_produced?: number;
+  production_entry_total_cost?: number;
+
   product_id: string;
   product_name: string;
   /** Keys are material names, values are quantity strings */

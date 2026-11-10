@@ -121,6 +121,8 @@ export const productionApi = {
         return apiClient.post<ProductionResponse>('/api/production/push/', data);
     },
 
+    pushCustom: (data:Record<string,unknown>,key:string) => apiClient.post<ProductionResponse>('/api/production/custom/push/',data,{headers:{'Idempotency-Key':key}}),
+
     getDailyDispatch: (date: string) => {
         return apiClient.post('/api/reports/production/list-of-undo/', {
             date

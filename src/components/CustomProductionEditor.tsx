@@ -1,0 +1,29 @@
+import {useEffect,useRef,useState} from 'react';
+import {apiClient} from '../utils/api';
+export interface CustomProductionSelection {enabled:boolean;ready:boolean;custom_size?:Record<string,string>;material_quantities?:Record<string,string>;materials_reviewed?:boolean;preview?:CustomProductionPreview}
+export interface CustomProductionPreview {product_name:string;custom_size:Record<string,number>;materials:{material_id:string;material_name:string;unit:string;quantity_per_unit:number;available_stock:number;rate:number;calculation:string}[]}
+export default function CustomProductionEditor({productId,onChange,disabled}:{productId:string;onChange:(value:CustomProductionSelection)=>void;disabled:boolean}){
+ const [enabled,setEnabled]=useState(false),[size,setSize]=useState({length:'',width:'',height:''});
+ const [preview,setPreview]=useState<CustomProductionPreview|null>(null),[quantities,setQuantities]=useState<Record<string,string>>({});
+ const [reviewed,setReviewed]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState('');
+ const revision=useRef(0);
+ const valid=Boolean(preview)&&Object.values(quantities).every(value=>value.trim()!==''&&Number.isFinite(Number(value))&&Number(value)>=0)&&Object.values(quantities).some(value=>Number(value)>0);
+ useEffect(()=>{onChange({enabled,ready:valid&&reviewed&&!loading,custom_size:size,material_quantities:quantities,materials_reviewed:reviewed,preview:preview || undefined});},[enabled,valid,reviewed,loading,size,quantities,preview,onChange]);
+ const calculate=async()=>{
+  if(Object.values(size).some(value=>!value.trim()||!Number.isFinite(Number(value))||Number(value)<=0||Number(value)>1000)){setError('Enter positive length, width and thickness in inches (up to 1000).');return;}
+  const current=++revision.current;setLoading(true);setError('');setReviewed(false);setPreview(null);
+  try{const result=await apiClient.post<CustomProductionPreview>('/api/production/custom/preview/',{product_id:productId,custom_size:size});if(current!==revision.current)return;setPreview(result.data);setQuantities(Object.fromEntries(result.data.materials.map(line=>[line.material_id,String(line.quantity_per_unit)])));}
+  catch(error:unknown){if(current===revision.current)setError((error as {response?:{data?:{error?:string}}}).response?.data?.error || 'Unable to calculate materials. Please retry.');}
+  finally{if(current===revision.current)setLoading(false);}
+ };
+ return <section className="rounded-lg border border-indigo-200 p-4 space-y-3 dark:border-indigo-700">
+  <label className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white"><input type="checkbox" checked={enabled} disabled={disabled} onChange={event=>setEnabled(event.target.checked)}/>Custom size for this production entry</label>
+  {enabled&&<><p className="text-sm text-gray-600 dark:text-gray-300">Uses the selected product’s raw materials. The standard product size and recipe remain unchanged.</p>
+   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{([['length','Length'],['width','Width'],['height','Thickness']] as const).map(([key,label])=><label key={key} className="text-sm text-gray-800 dark:text-gray-100">{label} (inches)<input type="number" min="0.01" max="1000" step="any" value={size[key]} disabled={disabled} onChange={event=>{revision.current++;setSize({...size,[key]:event.target.value});setPreview(null);setReviewed(false);setLoading(false);}} className="mt-1 w-full rounded border p-2 bg-white text-gray-900"/></label>)}</div>
+   <button type="button" disabled={disabled||loading} onClick={calculate} className="rounded bg-indigo-600 px-3 py-2 text-white disabled:opacity-50">{loading?'Calculating…':'Calculate materials for custom size'}</button>
+   {error&&<p role="alert" className="text-red-600">{error}</p>}
+   {preview&&<><h3 className="font-semibold text-gray-900 dark:text-white">{preview.product_name}</h3><p className="text-sm text-gray-600 dark:text-gray-300">Quantities below are per finished unit. Review materials without a formula manually.</p><div className="space-y-3">{preview.materials.map(line=><div key={line.material_id} className="rounded border border-gray-200 p-3 text-gray-800 dark:text-gray-100"><label className="block text-sm font-semibold">{line.material_name} · {line.unit || 'unit'}<input aria-label={`${line.material_name} quantity per unit`} type="number" min="0" step="any" value={quantities[line.material_id]} disabled={disabled} onChange={event=>{setQuantities({...quantities,[line.material_id]:event.target.value});setReviewed(false);}} className="block mt-1 w-full rounded border bg-white p-2 text-gray-900"/></label><p className="text-xs mt-1">{line.calculation==='formula'?'Calculated from Casting rules':'No formula — standard quantity carried forward; check manually'} · Available: {line.available_stock} {line.unit}</p><p className="text-xs">Rate: ₹{line.rate} / {line.unit || 'unit'} · Material cost per finished unit: ₹{Number.isFinite(Number(quantities[line.material_id]))?(Number(quantities[line.material_id])*Number(line.rate)).toFixed(2):'—'}</p></div>)}</div>
+    <label className="flex gap-2 text-sm text-gray-900 dark:text-white"><input type="checkbox" checked={reviewed} disabled={disabled||!valid} onChange={event=>setReviewed(event.target.checked)}/>I have checked the quantities, including materials without a formula.</label></>}
+  </>}
+ </section>;
+}

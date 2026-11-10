@@ -29,10 +29,10 @@ const withKey = (idempotencyKey: string) => ({
 
 /** APIs for a single physical, QR-labelled product unit. */
 export const unitApi = {
-  generate: (productId: string, quantity: number, idempotencyKey: string,labelDetails?:UnitLabelDetails) =>
+  generate: (productId: string, quantity: number, idempotencyKey: string,labelDetails?:UnitLabelDetails,production?:{pushId:string;offset:number}) =>
     apiClient.post<UnitGenerationResponse>(
       `/api/production/${encodeURIComponent(productId)}/units/generate/`,
-      { quantity,...(labelDetails?{label_details:labelDetails}:{}) },
+      { quantity,...(labelDetails?{label_details:labelDetails}:{}),...(production?{production_push_id:production.pushId,production_offset:production.offset}:{}) },
       withKey(idempotencyKey),
     ),
   listForProduct: (productId: string) =>
