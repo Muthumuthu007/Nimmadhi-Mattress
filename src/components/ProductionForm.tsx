@@ -1,3 +1,4 @@
+import ProductionMaterialQuantity from './ProductionMaterialQuantity';
 import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '../types';
 import { ProductionResponse, InsufficientMaterial } from '../types/index';
@@ -344,7 +345,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                 <ul className="list-disc list-inside">
                   {Object.entries(selectedProductDetails.stockNeeded).map(([material, quantity]) => (
                     <li key={material}>
-                      {material}: {quantity} {selectedProductDetails.materialUnits?.[material] || 'unit not recorded'}
+                      {material}: <ProductionMaterialQuantity productName={selectedProductDetails.name} materialName={material} quantity={Number(quantity)} unit={selectedProductDetails.materialUnits?.[material]}/>
                     </li>
                   ))}
                 </ul>
@@ -384,9 +385,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
               <p className="flex justify-between">
                 <span>Total Materials Required:</span>
                 <span className="font-medium">
-                  {Object.entries(selectedProductDetails.stockNeeded)
-                    .map(([material, qty]) => `${material}: ${Number(qty) * Number(quantity)} ${selectedProductDetails.materialUnits?.[material] || 'unit not recorded'}`)
-                    .join(', ')}
+                  {Object.entries(selectedProductDetails.stockNeeded).map(([material,qty])=><span key={material} className="block">{material}: <ProductionMaterialQuantity productName={selectedProductDetails.name} materialName={material} quantity={Number(qty)} unit={selectedProductDetails.materialUnits?.[material]} productCount={Number(quantity || 0)}/></span>)}
                 </span>
               </p>
             </div>

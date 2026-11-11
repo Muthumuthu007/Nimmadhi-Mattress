@@ -1,3 +1,4 @@
+import ProductionMaterialQuantity from '../components/ProductionMaterialQuantity';
 import TransferProductionProductsModal from '../components/TransferProductionProductsModal';
 import ProductionGroupHierarchy from '../components/ProductionGroupHierarchy';
 import ProductionGroupPlacementModal from '../components/ProductionGroupPlacementModal';
@@ -282,7 +283,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
                       <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 break-words">({product.groupChain[material]})</span>
                     )}
                   </div>
-                  <span className="text-xs sm:text-sm font-medium flex-shrink-0 text-right">{String(quantity)} {product.materialUnits?.[material] || 'unit not recorded'}</span>
+                  <span className="max-w-full text-xs sm:text-sm font-medium text-right"><ProductionMaterialQuantity productName={product.name} materialName={material} quantity={Number(quantity)} unit={product.materialUnits?.[material]}/></span>
                 </div>
               ))}
             </div>
