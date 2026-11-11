@@ -344,7 +344,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                 <ul className="list-disc list-inside">
                   {Object.entries(selectedProductDetails.stockNeeded).map(([material, quantity]) => (
                     <li key={material}>
-                      {material}: {quantity} units
+                      {material}: {quantity} {selectedProductDetails.materialUnits?.[material] || 'unit not recorded'}
                     </li>
                   ))}
                 </ul>
@@ -385,7 +385,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                 <span>Total Materials Required:</span>
                 <span className="font-medium">
                   {Object.entries(selectedProductDetails.stockNeeded)
-                    .map(([material, qty]) => `${material}: ${Number(qty) * Number(quantity)}`)
+                    .map(([material, qty]) => `${material}: ${Number(qty) * Number(quantity)} ${selectedProductDetails.materialUnits?.[material] || 'unit not recorded'}`)
                     .join(', ')}
                 </span>
               </p>

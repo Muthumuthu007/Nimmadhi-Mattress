@@ -17,6 +17,7 @@ export interface RawMaterial {
 }
 
 export interface ProductMaterial {
+  unit?: string;
   materialName: string;
   quantity: number;
   groupChain: string[];
@@ -35,6 +36,7 @@ export interface Product {
   productionCostTotal: number;
   productionCostBreakdown: ProductionCostBreakdown;
   stockNeeded: { [key: string]: number };
+  materialUnits?: Record<string,string>;
   createdAt: string;
   materials: ProductMaterial[];
   wastageAmount: number;

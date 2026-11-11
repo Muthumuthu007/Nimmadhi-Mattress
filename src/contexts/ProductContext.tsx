@@ -24,6 +24,7 @@ const mapRawProduct = (
 ): Product => {
   // Map materials array to stockNeeded and groupChain
   const stockNeeded: Record<string, number> = {};
+  const materialUnits: Record<string,string> = {};
   const groupChain: Record<string, string[]> = {};
 
   // Use the new 'materials' field if available, otherwise fall back to 'stock_details'
@@ -33,7 +34,11 @@ const mapRawProduct = (
     materialsData.forEach((item: any) => {
       // Use item_name as the key for the new structure
       const materialKey = item.item_name || item.item_id;
-      const materialQty = item.quantity || item.required_qty;
+      const materialQty = item.quantity ?? item.required_qty ?? 0;
+      if(typeof item.unit==='string' && item.unit.trim()){
+        materialUnits[materialKey]=item.unit.trim();
+        if(item.item_id)materialUnits[item.item_id]=item.unit.trim();
+      }
 
       stockNeeded[materialKey] = materialQty;
       groupChain[materialKey] = item.group_chain || [];
@@ -60,11 +65,13 @@ const mapRawProduct = (
     productionCostTotal: Number(product.production_cost_total),
     productionCostBreakdown: product.production_cost_breakdown,
     stockNeeded,
+    materialUnits,
     createdAt: product.created_at,
     materials: Array.isArray(materialsData)
       ? materialsData.map((item: any) => ({
         materialName: item.item_name || item.item_id,
-        quantity: item.quantity || item.required_qty
+        quantity: item.quantity ?? item.required_qty ?? 0,
+        unit: item.unit
       }))
       : [],
     wastage: Number(product.wastage_percent || 0),

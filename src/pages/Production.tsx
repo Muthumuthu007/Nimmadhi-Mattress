@@ -282,7 +282,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
                       <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 break-words">({product.groupChain[material]})</span>
                     )}
                   </div>
-                  <span className="text-xs sm:text-sm font-medium flex-shrink-0 text-right">{String(quantity)} units</span>
+                  <span className="text-xs sm:text-sm font-medium flex-shrink-0 text-right">{String(quantity)} {product.materialUnits?.[material] || 'unit not recorded'}</span>
                 </div>
               ))}
             </div>

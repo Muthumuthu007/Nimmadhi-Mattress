@@ -217,6 +217,7 @@ export interface ProductionProduct {
     inventory?: string | number;
     materials?: Array<{
         item_name?: string;
+        unit?: string;
         item_id?: string;
         quantity?: number;
         required_qty?: number;
@@ -224,6 +225,7 @@ export interface ProductionProduct {
     }>;
     stock_details?: Array<{
         item_name?: string;
+        unit?: string;
         item_id?: string;
         quantity?: number;
         required_qty?: number;
