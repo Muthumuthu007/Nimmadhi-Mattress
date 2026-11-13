@@ -36,7 +36,7 @@ test('rotated layout is contained by a physical page to prevent a second browser
  const html=unitLabelPrintDocument('<div class="unit-product-label">values</div>',89,45);
  assert.ok(html.includes('.unit-label-page{position:relative;width:89mm;height:45mm;overflow:hidden;'));
  assert.ok(html.includes('<body><div class="unit-label-page"><div class="unit-product-label">values</div></div>'));
- assert.ok(html.includes('label.scrollHeight>label.clientHeight+2'));
+ assert.match(html,/label\.scrollHeight\s*>\s*label\.clientHeight\s*\+\s*2/);
 });
 
 test('batch printing contains each unique label once and breaks only between stickers',()=>{
@@ -46,8 +46,8 @@ test('batch printing contains each unique label once and breaks only between sti
  for(const id of ['UNIT-ONE','UNIT-TWO','UNIT-THREE'])assert.equal(html.split(id).length-1,1);
  assert.ok(html.includes('.unit-label-page:not(:last-child){break-after:page;page-break-after:always}'));
  assert.ok(html.includes('height:auto;'));
- assert.ok(html.includes('labels.length!==3'));
- assert.ok(html.includes('labels.some(label=>'));
+ assert.ok(html.includes(')(document,89,45,true,3)'));
+ assert.ok(html.includes('label.replaceWith(images[index])'));assert.ok(html.includes('await doc.fonts.ready'));
 });
 test('empty or partially missing batches cannot print',()=>{
  assert.throws(()=>unitLabelPrintDocument([],89,45));
