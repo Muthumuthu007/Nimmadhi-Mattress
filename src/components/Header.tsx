@@ -99,7 +99,7 @@ export const Header = () => {
             </div>
 
             {/* ── Desktop Navigation ── */}
-            <nav className="hidden md:flex min-w-0 items-center gap-1 flex-1 justify-end">
+            <nav className="hidden xl:flex min-w-0 items-center gap-1 flex-1 justify-end">
               {/* Main links */}
               <div className="flex min-w-0 items-center gap-0.5 lg:gap-1 flex-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {navItems.filter(n => n.visible).map(item => (
@@ -109,9 +109,10 @@ export const Header = () => {
                     end={item.end}
                     className={desktopLinkClass}
                     title={item.label}
+                    aria-label={item.label}
                   >
                     {item.icon}
-                    <span className="hidden lg:inline">{item.label}</span>
+                    <span className="hidden 2xl:inline">{item.label}</span>
                   </NavLink>
                 ))}
               </div>
@@ -124,7 +125,7 @@ export const Header = () => {
                 {isAdmin && (
                   <NavLink to="/admin" className={desktopLinkClass}>
                     <Shield className="h-4 w-4" />
-                    <span className="hidden lg:inline">Admin</span>
+                    <span className="hidden 2xl:inline">Admin</span>
                   </NavLink>
                 )}
 
@@ -134,16 +135,17 @@ export const Header = () => {
 
                 <button
                   onClick={handleLogout}
+                  aria-label="Logout"
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-red-500/20 hover:text-white transition-all duration-200"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span className="hidden lg:inline">Logout</span>
+                  <span className="hidden 2xl:inline">Logout</span>
                 </button>
               </div>
             </nav>
 
             {/* ── Mobile: ThemeToggle + Hamburger ── */}
-            <div className="flex items-center gap-2 md:hidden">
+            <div className="flex items-center gap-2 xl:hidden">
               <div className="scale-75">
                 <ThemeToggle />
               </div>
@@ -161,8 +163,9 @@ export const Header = () => {
 
         {/* ── Mobile Slide-Down Menu ── */}
         <div
-          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-            isMenuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+          hidden={!isMenuOpen}
+          className={`xl:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+            isMenuOpen ? 'max-h-[calc(100dvh-4rem)] overflow-y-auto opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
           <nav className="px-4 pt-2 pb-4 space-y-1 border-t border-white/10">
@@ -207,7 +210,7 @@ export const Header = () => {
       {/* ── Backdrop overlay for mobile ── */}
       {isMenuOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm xl:hidden"
           onClick={() => setIsMenuOpen(false)}
           aria-hidden="true"
         />

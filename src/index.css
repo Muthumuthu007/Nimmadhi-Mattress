@@ -243,3 +243,31 @@
     @apply border-t border-gray-200 my-6;
   }
 }
+/* Shared screen layout. Printed labels keep their physical dimensions. */
+@media screen {
+ .inventory-main { min-width: 0; }
+ .inventory-main :where(.grid,.flex) > * { min-width: 0; }
+ .inventory-main :where(h1,h2,h3,h4,p,legend,label,summary) { overflow-wrap: break-word; }
+ .inventory-main input, .inventory-main select, .inventory-main textarea { max-width: 100%; }
+ .inventory-main .overflow-x-auto { max-width: 100%; overscroll-behavior-x: contain; }
+ .production-material-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,12rem),1fr)); gap: .5rem 1rem; align-items: start; }
+ .production-material-row > * { min-width: 0; }
+ .production-material-row > :last-child { text-align: start; }
+}
+@media screen and (max-width: 640px) {
+ .inventory-main { padding-inline: .75rem; }
+ .inventory-main :where(input:not([type=checkbox]):not([type=radio]),select,textarea) { min-height: 44px; font-size: 16px; }
+ .inventory-main button { min-height: 44px; max-width: 100%; white-space: normal; }
+ .inventory-main :where(h1,h2) { font-size: clamp(1.25rem,5vw,1.75rem); }
+}
+
+@media screen {
+ .production-group-header { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; }
+ .production-group-toggle { flex:1 1 200px; }
+ .production-group-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+ .production-group-actions button { padding:.5rem .65rem; border:1px solid currentColor; border-radius:.5rem; }
+ .production-summary-materials { display:grid; gap:.75rem; margin-top:.75rem; }
+ .production-summary-materials > .font-medium { display:grid; gap:.5rem; }
+}
+
+@media screen { .skeleton-shimmer { max-width:100%; } }

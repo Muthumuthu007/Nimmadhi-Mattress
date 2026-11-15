@@ -146,7 +146,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
       </div>
 
       {/* Actions */}
-      {!product.is_custom_production_record && <div className="px-5 pb-4 pt-1 grid grid-cols-3 gap-2">
+      {!product.is_custom_production_record && <div className="px-5 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           onClick={() => onMove(product.product_id)}
           disabled={isMoving}

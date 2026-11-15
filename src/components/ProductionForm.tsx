@@ -391,12 +391,12 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                     Number((selectedProductDetails as any).otherCost || 0)) * Number(quantity)
                 ).toFixed(2)}</span>
               </p>
-              <p className="flex justify-between">
+              <div className="production-summary-materials">
                 <span>Total Materials Required:</span>
                 <span className="font-medium">
                   {Object.entries(selectedProductDetails.stockNeeded).map(([material,qty])=><span key={material} className="block">{material}: <ProductionMaterialQuantity productName={selectedProductDetails.name} materialName={material} quantity={Number(qty)} unit={selectedProductDetails.materialUnits?.[material]} productCount={Number(quantity || 0)}/></span>)}
                 </span>
-              </p>
+              </div>
             </div>
           </div>
         )}

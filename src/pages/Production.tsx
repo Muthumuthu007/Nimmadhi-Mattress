@@ -278,7 +278,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             <div className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Materials Required</div>
             <div className="space-y-2">
               {Object.entries(product.stockNeeded ?? {}).map(([material, quantity]) => (
-                <div key={material} className="flex justify-between items-start gap-2 text-gray-900 dark:text-gray-200">
+                <div key={material} className="production-material-row text-gray-900 dark:text-gray-200">
                   <div className="flex-1 min-w-0">
                     <span className="text-xs sm:text-sm font-medium break-words">{material}</span>
                     {product.groupChain[material] && (
@@ -1166,12 +1166,12 @@ const Production = () => {
                   return (
                     <div key={groupKey}>
                       {/* Group section header — click to collapse/expand, plus a delete action */}
-                      <div className="w-full flex items-center gap-2 mb-4 pb-2 border-b-2 border-gray-100 dark:border-gray-700 rounded-t-lg px-2 py-1 -mx-2">
+                      <div className="production-group-header w-full mb-4 pb-2 border-b-2 border-gray-100 dark:border-gray-700">
                         <button
                           type="button"
                           onClick={() => toggleGroupExpand(groupKey)}
                           aria-expanded={isOpen}
-                          className="flex-1 flex items-center gap-2 min-w-0 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg py-1 px-1 -mx-1 transition-colors duration-200"
+                          className="production-group-toggle flex items-center gap-2 min-w-0 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg py-1 px-1 -mx-1 transition-colors duration-200"
                         >
                           {isOpen ? (
                             <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
@@ -1179,7 +1179,7 @@ const Production = () => {
                             <ChevronRight className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                           )}
                           <Layers className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                          <h3 className="text-sm md:text-base font-bold text-gray-700 dark:text-gray-200 truncate">
+                          <h3 className="text-sm md:text-base font-bold text-gray-700 dark:text-gray-200 break-words">
                             {section.groupName}
                           </h3>
                           <span className="flex-shrink-0 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold px-2 py-0.5 rounded-full">
@@ -1187,7 +1187,7 @@ const Production = () => {
                           </span>
                         </button>
 
-                        {user?.isAdmin && section.products.length>0 && <button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setTransferSource(section.groupId);setShowTransferProducts(true);}}>Transfer products</button>}
+                        <div className="production-group-actions">{user?.isAdmin && section.products.length>0 && <button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setTransferSource(section.groupId);setShowTransferProducts(true);}}>Transfer products</button>}
                         {groupKey !== UNGROUPED_GROUP_KEY && section.groupKind!=='MAIN' && <><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setNewGroupParent(groupKey);setShowCreateGroupForm(true);}}>+ Subgroup</button><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>setGroupToPlace({id:groupKey,name:section.groupName})}>Place group</button></>}
                         {groupKey !== UNGROUPED_GROUP_KEY && section.groupKind!=='MAIN' && (
                           <button
@@ -1200,7 +1200,7 @@ const Production = () => {
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                        )}
+                        )}</div>
                       </div>
 
                       {isOpen && (
