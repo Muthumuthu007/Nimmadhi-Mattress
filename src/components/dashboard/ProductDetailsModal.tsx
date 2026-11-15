@@ -1,3 +1,4 @@
+import {ProductPathLabel} from '../GroupedProductList';
 import React, { memo, useMemo, useCallback, Suspense } from 'react';
 import { formatApiDate } from '../../utils/dateUtils';
 
@@ -51,7 +52,7 @@ const ProductDetailsModalComponent = ({ product, onClose }: Props) => {
                   <span className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-1 text-sm font-medium rounded-full">
                     ID: {product.id}
                   </span>
-                </h2>
+                </h2><ProductPathLabel item={product as unknown as Record<string,unknown>}/>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Created: {createdDate}</p>
               </div>
 

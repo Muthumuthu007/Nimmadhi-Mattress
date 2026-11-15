@@ -47,6 +47,8 @@ export interface Product {
   /** Product Group this product belongs to, as returned by grouped_products */
   groupId?: string | null;
   groupName?: string | null;
+  outletAvailability?: import('./utils/productAvailability').Availability;
+  availabilityVersion?: number;
   remarks?: string;
   mrp?: number | null;
 }

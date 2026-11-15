@@ -268,6 +268,7 @@ export interface ProductionListResponse {
 
 /** A selectable production group, as returned by /api/production/groups/names/ */
 export interface ProductGroup {
+    outlet_availability?: import('./productAvailability').Availability;
     parent_id?: string | null;
     group_kind?: string;
     group_id: string;

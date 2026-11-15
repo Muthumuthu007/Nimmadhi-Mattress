@@ -1,3 +1,4 @@
+import {ProductPathLabel} from '../GroupedProductList';
 import { memo, useMemo } from 'react';
 
 import { Product } from '../../types';
@@ -28,7 +29,7 @@ export const DashboardProductCard = memo(({ product, onViewDetails }: DashboardP
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-start bg-gradient-to-r from-gray-50 to-white dark:from-gray-700 dark:to-gray-800">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-1 truncate max-w-[200px]" title={product.name}>{product.name}</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-1 truncate max-w-[200px]" title={product.name}>{product.name}</h3><ProductPathLabel item={product as unknown as Record<string,unknown>}/>
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-mono">ID: {product.id.slice(0, 8)}...</span>
             <span>{formatApiDate(product.createdAt, 'MMM d, yyyy')}</span>

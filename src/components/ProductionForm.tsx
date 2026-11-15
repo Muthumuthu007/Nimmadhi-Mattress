@@ -1,3 +1,6 @@
+import QRReprintHistory from './QRReprintHistory';
+import {unitApi} from '../utils/unitApi';
+import GroupedProductList from './GroupedProductList';
 import ProductionMaterialQuantity from './ProductionMaterialQuantity';
 import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '../types';
@@ -11,6 +14,9 @@ import UndoProductionModal from './UndoProductionModal';
 import ProductionErrorNotice from './ProductionErrorNotice';
 import ProductionQRDialog from './ProductionQRDialog';
 import CustomProductionEditor,{CustomProductionSelection} from './CustomProductionEditor';
+
+const loadQRHistory=async()=> (await unitApi.reprintHistory()).data;
+const loadQRBatch=async(id:string)=> (await unitApi.reprintBatch(id)).data;
 
 interface ProductionFormProps {
   products: Product[];
@@ -35,6 +41,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   const goToMissingStep=()=>{setErrorNoticeOpen(false);requestAnimationFrame(()=>{const field=formTopRef.current?.querySelector<HTMLElement>(`[data-production-field="${errorTarget}"]`);field?.scrollIntoView({behavior:'smooth',block:'center'});field?.focus({preventScroll:true});});};
   const [insufficientMaterials, setInsufficientMaterials] = useState<InsufficientMaterial[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showQRHistory,setShowQRHistory]=useState(false);
   const [qrEntry,setQREntry]=useState<ProductionResponse|null>(null);
   const [lastProduction, setLastProduction] = useState<ProductionResponse | null>(null);
   const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
@@ -103,7 +110,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
       let response;
       if(custom.enabled || customUncertain){
         if(!customUncertain){
-          const body={product_id:selectedProduct,quantity:Number(quantity),custom_size:custom.custom_size,material_quantities:custom.material_quantities,materials_reviewed:custom.materials_reviewed};
+          const body={product_id:selectedProduct,quantity:Number(quantity),custom_size:custom.custom_size,layer_mm:custom.layer_mm,material_quantities:custom.material_quantities,materials_reviewed:custom.materials_reviewed};
           const signature=JSON.stringify(body);
           if(customRequest.current?.signature!==signature)customRequest.current={signature,key:crypto.randomUUID(),body};
         }
@@ -209,6 +216,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         </button>
       </div>
 
+      <button type="button" onClick={()=>setShowQRHistory(true)} className="mb-4 mr-3 rounded border border-indigo-300 px-3 py-2 text-indigo-700 dark:text-indigo-200">Reprint QR — last 3 days</button>
+      {showQRHistory&&<QRReprintHistory loadHistory={loadQRHistory} loadBatch={loadQRBatch} onClose={()=>setShowQRHistory(false)}/>}
       {qrEntry && <ProductionQRDialog key={qrEntry.push_id} entry={qrEntry} onClose={()=>setQREntry(null)}/>}
       {lastProduction?.push_id && <button type="button" onClick={()=>setQREntry(lastProduction)} className="mb-4 rounded border border-indigo-300 px-3 py-2 text-indigo-700 dark:text-indigo-200">QR labels for last production</button>}
       {error && errorNoticeOpen && <ProductionErrorNotice message={error} onClose={()=>setErrorNoticeOpen(false)} onResolve={errorTarget?goToMissingStep:undefined}/>}
@@ -294,7 +303,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                       No products found
                     </div>
                   ) : (
-                    filteredProducts.map((product) => (
+                    <GroupedProductList items={filteredProducts} renderItem={(product) => (
                       <button
                         key={product.id}
                         type="button"
@@ -312,7 +321,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
 
                         </div>
                       </button>
-                    ))
+                    )}/>
                   )}
                 </div>
               </div>

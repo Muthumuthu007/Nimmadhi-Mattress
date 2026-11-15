@@ -58,6 +58,7 @@ export const Header = () => {
   };
 
   const navItems: NavItem[] = [
+    {to:'/admin/product-availability',label:'Product Availability',icon:<PackageSearch className="h-4 w-4"/>,visible:isAdmin},
     { to: '/dashboard/grn',        label: 'GRN',        icon: <ClipboardList className="h-4 w-4" />, visible: hasPermission('grn') },
     { to: '/dashboard',            label: 'Dashboard',  icon: <LayoutDashboard className="h-4 w-4" />, end: true, visible: hasPermission('dashboard') },
     { to: '/dashboard/costing',    label: 'Costing',    icon: <Droplet className="h-4 w-4" />, visible: hasPermission('costing') },

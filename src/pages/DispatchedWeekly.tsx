@@ -1,3 +1,5 @@
+import {groupDispatchRows,dispatchGroupTitle} from '../utils/dispatchGroups';
+import GroupedProductList from '../components/GroupedProductList';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,7 +11,8 @@ import { makeApiRequest } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
 import * as XLSX from 'xlsx';
-import { ReportSkeleton } from '../components/skeletons/ReportSkeleton';import { formatApiDate, toTimestamp } from '../utils/dateUtils';
+import { ReportSkeleton } from '../components/skeletons/ReportSkeleton';
+import { formatApiDate, toTimestamp } from '../utils/dateUtils';
 
 
 const DispatchedWeekly = () => {
@@ -78,9 +81,10 @@ const DispatchedWeekly = () => {
     setIsDownloading(true);
     try {
       const header = [
-        'Product Name', 'Quantity Produced', 'Cost per Unit', 'Total Production Cost', 'Status', 'Dispatched By', 'Timestamp'
+        'Production Group / Subgroup', 'Product Name', 'Quantity Produced', 'Cost per Unit', 'Total Production Cost', 'Status', 'Dispatched By', 'Timestamp'
       ];
-      const rows = records.map(r => [
+      const rows = groupDispatchRows(records).flatMap(group=>group.rows).map(r => [
+        dispatchGroupTitle(r),
         r.product_name,
         r.quantity_produced,
         r.production_cost_per_unit,
@@ -89,8 +93,8 @@ const DispatchedWeekly = () => {
         r.username,
         r.timestamp
       ]);
-      const summaryHeader = ['Product Name', 'Total Quantity Dispatched'];
-      const summaryRows = summary.map(s => [s.product_name, s.total_quantity]);
+      const summaryHeader = ['Production Group / Subgroup', 'Product Name', 'Total Quantity Dispatched'];
+      const summaryRows = summary.map(s => [dispatchGroupTitle(s),s.product_name,s.total_quantity]);
       const ws = XLSX.utils.aoa_to_sheet([
         ['Summary'],
         summaryHeader,
@@ -319,8 +323,7 @@ const DispatchedWeekly = () => {
           </button>
           {showSummary && (
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {summary.map((s) => (
+              <GroupedProductList items={summary} contentClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" renderItem={(s) => (
                   <div key={JSON.stringify([s.product_id, !!s.is_custom_size, s.custom_size])} className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border-2 border-purple-200 p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -333,8 +336,7 @@ const DispatchedWeekly = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}/>
             </div>
           )}
         </div>
@@ -352,7 +354,7 @@ const DispatchedWeekly = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {filteredRecords.map((record) => (
+          <GroupedProductList items={filteredRecords} renderItem={(record) => (
             <div
               key={record.push_id}
               className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow p-6"
@@ -405,7 +407,7 @@ const DispatchedWeekly = () => {
                 <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{record.username}</div>
               </div>
             </div>
-          ))}
+          )}/>
         </div>
       )}
       <DeleteConfirmationDialog

@@ -17,6 +17,7 @@ import MonthlyConsumption from '../pages/reports/MonthlyConsumption';
 import Login from '../pages/Login';
 import Unauthorized from '../pages/Unauthorized';
 import Admin from '../pages/Admin';
+import ProductAvailability from '../pages/ProductAvailability';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AdminRoute from '../components/AdminRoute';
 import PermissionGuard from '../components/PermissionGuard';
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
         index: true,
         element: <Admin />,
       },
+      {path: 'product-availability', element: <ProductAvailability />},
     ],
   },
   {

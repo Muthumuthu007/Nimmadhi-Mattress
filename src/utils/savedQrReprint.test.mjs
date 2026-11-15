@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {transform} from 'esbuild';
+const {code}=await transform(fs.readFileSync(new URL('./savedQrReprint.ts',import.meta.url),'utf8'),{loader:'ts',format:'esm'});
+const {savedQRSelection}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const batch={reprint_ready:true,quantity:3,label_details:{commodity:'PILLOW',quality:'FINE',size:'Standard',manufacturing_month:'2026-11',mrp:'700'},units:['P-001','P-002','P-003'].map(unit_id=>({unit_id,qr_payload:{unit_id}}))};
+test('selected reprints retain original identities and leave saved batch unchanged',()=>{const snapshot=structuredClone(batch);for(let n=0;n<2;n++){const selected=savedQRSelection(batch,['P-003','P-001']);assert.deepEqual(selected.map(u=>u.qr_payload),[{unit_id:'P-003'},{unit_id:'P-001'}]);assert.strictEqual(selected[0],batch.units[2]);}assert.deepEqual(batch,snapshot);});
+test('empty, duplicate, invented or incomplete labels cannot print',()=>{for(const ids of [[],['P-001','P-001'],['P-004']])assert.throws(()=>savedQRSelection(batch,ids));for(const changed of [{quantity:4},{reprint_ready:false},{label_details:null},{units:[]}])assert.throws(()=>savedQRSelection({...batch,...changed},['P-001']));});

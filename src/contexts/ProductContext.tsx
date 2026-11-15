@@ -83,6 +83,8 @@ const mapRawProduct = (
     otherCost: Number(product.other_cost ?? 0),
     groupId: groupOverride ? groupOverride.groupId : (product.group_id ?? null),
     groupName: groupOverride ? groupOverride.groupName : (product.group_name ?? null),
+    outletAvailability: product.outlet_availability || 'INHERIT',
+    availabilityVersion: Number(product.availability_version||0),
     remarks: product.remarks || '',
     mrp: product.mrp == null ? null : Number(product.mrp),
   } as Product;

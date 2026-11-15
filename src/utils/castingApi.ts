@@ -4,6 +4,7 @@ import { axiosInstance } from './axiosInstance';
 // ─── Create ─────────────────────────────────────────────────────────────────
 
 export interface CreateCastingPayload {
+  layer_mm?: number;
   product_name: string;
   selected_items: string[]; // array of material names (not IDs)
   username: string;
@@ -15,6 +16,8 @@ export interface CreateCastingPayload {
 }
 
 export interface CreateCastingResponse {
+  layer_mm?: number;
+  manual_review_material_ids?: string[];
   message: string;
   product_id: string;
   product_name: string;
@@ -54,6 +57,7 @@ export async function createCastingProduct(
 // ─── View / List ─────────────────────────────────────────────────────────────
 
 export interface CastingProductResponse {
+  manual_review_material_ids?: string[];
   is_custom_production_record?: boolean;
   production_status?: string;
   source_product_name?: string;

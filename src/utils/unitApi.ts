@@ -29,6 +29,8 @@ const withKey = (idempotencyKey: string) => ({
 
 /** APIs for a single physical, QR-labelled product unit. */
 export const unitApi = {
+  reprintHistory: () => apiClient.get('/api/production/qr-reprints/'),
+  reprintBatch: (id:string) => apiClient.get(`/api/production/qr-reprints/${encodeURIComponent(id)}/`),
   generate: (productId: string, quantity: number, idempotencyKey: string,labelDetails?:UnitLabelDetails,production?:{pushId:string;offset:number}) =>
     apiClient.post<UnitGenerationResponse>(
       `/api/production/${encodeURIComponent(productId)}/units/generate/`,

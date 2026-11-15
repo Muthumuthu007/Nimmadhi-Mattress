@@ -1,3 +1,5 @@
+import QRReprintHistory from '../components/QRReprintHistory';
+import {ProductGroupOptions,ProductPathLabel} from '../components/GroupedProductList';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import UnitProductLabel from '../components/UnitProductLabel';
@@ -53,7 +55,10 @@ function selectedProductList(products:ProductionProduct[],matches:ProductionProd
  return current&&!matches.some(product=>product.product_id===selected)?[current,...matches]:matches;
 }
 
+const loadQRHistory=async()=> (await unitApi.reprintHistory()).data;
+const loadQRBatch=async(id:string)=> (await unitApi.reprintBatch(id)).data;
 export default function UnitTracking() {
+  const [showQRHistory,setShowQRHistory]=useState(false);
   const [products, setProducts] = useState<ProductionProduct[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [productId, setProductId] = useState('');
@@ -177,7 +182,7 @@ export default function UnitTracking() {
   const printLabels = (ids:string[]) => {
     const labels=ids.map(id=>labelRefs.current.get(id));
     if(!ids.length || labels.some(label=>!label)){
-      setError('All QR labels must be ready before printing. Please generate them again.');
+      setError('Saved labels are not fully loaded. Open Reprint QR history and select the saved batch; do not generate new labels for these units.');
       return;
     }
     setError('');
@@ -206,14 +211,16 @@ export default function UnitTracking() {
       {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{notice}</div>}
 
+      <button type="button" onClick={()=>setShowQRHistory(true)} className="rounded-lg border border-indigo-300 px-4 py-2 text-indigo-700 dark:text-indigo-200">Reprint QR — last 3 days</button>
+      {showQRHistory&&<QRReprintHistory loadHistory={loadQRHistory} loadBatch={loadQRBatch} onClose={()=>setShowQRHistory(false)}/>}
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-lg text-gray-900 dark:text-white">1. Create QR unit labels</h2><button onClick={loadProducts} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-500 dark:text-gray-100 dark:hover:bg-gray-700" disabled={loading === 'products'}>{productsLoaded ? 'Refresh products' : 'Load products'}</button></div>
           <form onSubmit={generate} className="mt-5 space-y-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-100">Search products<input type="search" value={productSearch} onChange={event=>setProductSearch(event.target.value)} disabled={!productsLoaded} placeholder="Type product name or size…" className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 disabled:opacity-60 dark:border-gray-500 dark:bg-gray-900 dark:text-white"/></label>
             {productsLoaded && <p role="status" className="text-sm text-gray-600 dark:text-gray-300">{matchingProducts.length?`${matchingProducts.length} matching product${matchingProducts.length===1?'':'s'}`:'No products match your search.'}{productSearch && productId && !matchingProducts.some(product=>product.product_id===productId)?' Your selected product is retained below.':''}</p>}
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-100">Product<select required value={productId} onChange={(e) => {setProductId(e.target.value);const product=products.find(p=>p.product_id===e.target.value);setLabelDetails(initialUnitLabel(product?.product_name || '',product?.mrp));}} disabled={!productsLoaded} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-500 dark:bg-gray-900 dark:text-white"><option value="">{productsLoaded ? 'Choose a product' : 'Load products first'}</option>{selectableProducts.map((product) => <option key={product.product_id} value={product.product_id}>{product.product_name} {product.max_produce != null ? `— max produce ${product.max_produce}` : ''}</option>)}</select></label>
-            {selectedProduct && <p className="text-sm text-gray-600 dark:text-gray-300">Selected product: <strong>{selectedProduct.product_name}</strong></p>}
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-100">Product<select required value={productId} onChange={(e) => {setProductId(e.target.value);const product=products.find(p=>p.product_id===e.target.value);setLabelDetails(initialUnitLabel(product?.product_name || '',product?.mrp));}} disabled={!productsLoaded} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-500 dark:bg-gray-900 dark:text-white"><option value="">{productsLoaded ? 'Choose a product' : 'Load products first'}</option><ProductGroupOptions items={selectableProducts} id={product=>product.product_id} name={product=>product.product_name}/></select></label>
+            {selectedProduct && <p className="text-sm text-gray-600 dark:text-gray-300">Selected product: <strong>{selectedProduct.product_name}</strong><ProductPathLabel item={selectedProduct as unknown as Record<string,unknown>}/></p>}
             <fieldset className="grid gap-3 sm:grid-cols-2"><legend className="mb-2 font-semibold text-gray-900 dark:text-white">Printed product details</legend>{([['commodity','Name of the commodity'],['quality','Quality'],['size','Size in inches'],['manufacturing_month','Manufacturing month'],['mrp','MRP including taxes (Rs.)']] as const).map(([key,title])=><label key={key} className="block text-sm font-medium text-gray-700 dark:text-gray-100">{title}<input required maxLength={100} type={key==='manufacturing_month'?'month':key==='mrp'?'number':'text'} min={key==='mrp'?'0.01':undefined} step={key==='mrp'?'0.01':undefined} value={labelDetails[key]} onChange={e=>setLabelDetails({...labelDetails,[key]:e.target.value})} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-500 dark:bg-gray-900 dark:text-white"/></label>)}</fieldset><p className="text-xs text-gray-600 dark:text-gray-300">Review the suggested commodity, quality and size. Enter the actual manufacturing month; QR generation date is not the manufacturing date. These details are saved with each generated unit.</p>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-100">Number of physical units (1–49)<input required type="number" min="1" max="49" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-500 dark:bg-gray-900 dark:text-white" /></label>
             <button disabled={!productsLoaded || loading === 'generate'} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white disabled:opacity-50"><PackageCheck className="w-4 h-4" />{loading === 'generate' ? 'Generating…' : 'Generate QR labels'}</button>

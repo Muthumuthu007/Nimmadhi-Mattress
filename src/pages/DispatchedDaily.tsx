@@ -1,3 +1,4 @@
+import GroupedProductList from '../components/GroupedProductList';
 import {groupDispatchRows,dispatchGroupTitle} from '../utils/dispatchGroups';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -290,11 +291,7 @@ const DispatchedDaily = () => {
           </button>
           {showSummary && (
             <div className="p-6">
-              {groupDispatchRows(summary).map(group=><section key={group.key} className="mb-6 last:mb-0">
-              <h3 className="mb-3 font-bold text-gray-900">{group.title}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {group.rows.map((s) => (
-                  <div key={JSON.stringify([s.product_id, !!s.is_custom_size, s.custom_size])} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+              <GroupedProductList items={summary} contentClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" renderItem={(s)=>(<div key={JSON.stringify([s.product_id, !!s.is_custom_size, s.custom_size])} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-xs uppercase tracking-wider text-blue-700 font-semibold mb-1">Product</p>
@@ -305,9 +302,7 @@ const DispatchedDaily = () => {
                         <p className="text-2xl font-bold text-blue-600">{s.total_quantity}</p>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div></section>)}
+                  </div>)}/>
             </div>
           )}
         </div>
@@ -325,13 +320,7 @@ const DispatchedDaily = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {groupDispatchRows(filteredRecords).map(group=><section key={group.key} className="space-y-4">
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-700 dark:bg-indigo-900/30">
-              <h2 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">{group.title}</h2>
-              <p className="text-sm text-indigo-700 dark:text-indigo-200">{group.rows.length} production {group.rows.length===1?'entry':'entries'} · {group.rows.reduce((sum,row)=>sum+Number(row.quantity_produced || 0),0)} units</p>
-            </div>
-          {group.rows.map((record) => (
-            <div
+          <GroupedProductList items={filteredRecords} renderItem={(record)=>(<div
               key={record.push_id}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all p-6"
             >
@@ -382,8 +371,7 @@ const DispatchedDaily = () => {
                 <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19a6 6 0 01-12 0V5a2 2 0 012-2h8a2 2 0 012 2v14z" /></svg>{record.timestamp ? formatApiDate(record.timestamp, 'PPP, p') : ''}</div>
                 <div className="flex items-center"><svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{record.username}</div>
               </div>
-            </div>
-          ))}</section>)}
+            </div>)}/>
         </div>
       )}
       {/* Delete Confirmation Dialog */}

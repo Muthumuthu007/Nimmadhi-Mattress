@@ -1,3 +1,5 @@
+import {useProductPath} from '../hooks/useProductPath';
+import GroupedProductList,{GroupedProductRows} from '../components/GroupedProductList';
 import {
   useState,
   useEffect,
@@ -100,6 +102,7 @@ const Dashboard = () => {
   // grouped_products response from /api/production/list/ — the same source the
   // Production page uses. The flat `products` array is what this page renders.
   const { products, fetchProducts } = useProducts();
+  const resolveProductPath=useProductPath();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -338,6 +341,7 @@ const Dashboard = () => {
 
     // 1. PRODUCTS SHEET
     const productData = products.map((p) => ({
+      "Production Group / Subgroup": resolveProductPath(p as unknown as Record<string,unknown>).map(part=>part.name).join(' → '),
       ID: p.id || "",
       Name: p.name || "Unknown",
       "Max Produce": Number(p.maxProduce) || 0,
@@ -356,6 +360,7 @@ const Dashboard = () => {
     // 2. MONTHLY SUMMARY SHEET
     if (monthlySummary?.items) {
       const summaryData = monthlySummary.items.map((item: any) => ({
+        "Production Group / Subgroup":resolveProductPath(item).map(part=>part.name).join(' → '),
         Product: item.product_name,
         Quantity: item.quantity_produced || item.total_quantity,
       }));
@@ -393,26 +398,27 @@ const Dashboard = () => {
 
     // SAVE FILE
     XLSX.writeFile(wb, `Dashboard_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
-  }, [products, monthlySummary, allRawMaterials, lowStockItems]);
+  }, [products, monthlySummary, allRawMaterials, lowStockItems,resolveProductPath]);
 
   const downloadMonthlyExcel = useCallback(() => {
     if (!monthlySummary?.items) return;
 
     const sheetData = [
-      ["Product", "Quantity"],
+      ["Production Group / Subgroup", "Product", "Quantity"],
       ...monthlySummary.items.map((item: any) => [
+        resolveProductPath(item).map(part=>part.name).join(' → '),
         item.product_name,
         item.quantity_produced || item.total_quantity,
       ]),
       [],
-      ["Total", monthlySummary.total],
+      ["", "Total", monthlySummary.total],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Monthly Summary");
     XLSX.writeFile(wb, "monthly-production.xlsx");
-  }, [monthlySummary]);
+  }, [monthlySummary,resolveProductPath]);
 
   // 📌 LOADING STATE
   if (isLoading || isRefreshing) {
@@ -531,7 +537,7 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {monthlySummary.items.map((item: any, index: number) => (
+                  <GroupedProductRows items={monthlySummary.items} columns={2} renderItem={(item: {product_id:string;product_name:string;total_quantity:number|string}, index: number) => (
                     <tr
                       key={item.product_id}
                       className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors duration-150"
@@ -548,7 +554,7 @@ const Dashboard = () => {
                         {(Number(item.total_quantity) || 0).toLocaleString()}
                       </td>
                     </tr>
-                  ))}
+                  )}/>
                   <tr className="bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 font-bold">
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-white uppercase tracking-wide">
                       Total Production
@@ -638,7 +644,7 @@ const Dashboard = () => {
       </div>
 
       {/* VIRTUALIZED PRODUCT LIST - Enhanced */}
-      <div className="h-[70vh] bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="p-3 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
         {sortedProducts.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-8">
             <div className="text-center">
@@ -665,10 +671,11 @@ const Dashboard = () => {
             </div>
           </div>
         ) : (
+          <GroupedProductList key={searchQuery?'search:'+searchQuery:'browse'} items={sortedProducts} expanded={Boolean(searchQuery)} renderItems={groupProducts=><div style={{height:520}}>
           <AutoSizer>
             {({ width, height }: { width: number; height: number }) => {
               const itemsPerRow = width < 768 ? 1 : width < 1280 ? 2 : 3;
-              const rowCount = Math.ceil(sortedProducts.length / itemsPerRow);
+              const rowCount = Math.ceil(groupProducts.length / itemsPerRow);
 
               return (
                 <FixedSizeList
@@ -678,7 +685,7 @@ const Dashboard = () => {
                   itemSize={500}
                   overscanCount={2}
                   itemData={{
-                    items: sortedProducts,
+                    items: groupProducts,
                     itemsPerRow,
                     onViewDetails: setSelectedProduct
                   }}
@@ -688,6 +695,8 @@ const Dashboard = () => {
               );
             }}
           </AutoSizer>
+          </div>}/>
+
         )}
       </div>
 

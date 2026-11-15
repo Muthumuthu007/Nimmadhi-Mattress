@@ -1,3 +1,5 @@
+import AvailabilitySelect from '../components/AvailabilitySelect';
+import {Availability} from '../utils/productAvailability';
 import ProductionMaterialQuantity from '../components/ProductionMaterialQuantity';
 import TransferProductionProductsModal from '../components/TransferProductionProductsModal';
 import ProductionGroupHierarchy from '../components/ProductionGroupHierarchy';
@@ -322,6 +324,8 @@ interface EditProductDetailsModalProps {
 }
 
 const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ product, username, onClose, onSuccess }) => {
+  const {isAdmin}=useAuth();
+  const [availability,setAvailability]=useState<Availability>(product.outletAvailability||'INHERIT');
   const [productName, setProductName] = useState(product.name);
   const [mrp, setMrp] = useState(product.mrp == null ? '' : String(product.mrp));
   const [remarks, setRemarks] = useState(product.remarks || '');
@@ -338,6 +342,7 @@ const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ produ
         product_id: product.id,
         username,
         product_name: productName.trim(),
+        ...(isAdmin?{outlet_availability:availability,availability_version:product.availabilityVersion||0}:{}),
         remarks: remarks.trim(),
         mrp: mrp.trim() || null,
       });
@@ -360,6 +365,7 @@ const EditProductDetailsModal: React.FC<EditProductDetailsModalProps> = ({ produ
         {error && <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</div>}
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Product name<input required maxLength={200} value={productName} onChange={(event) => setProductName(event.target.value)} className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></label>
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">MRP (₹) <span className="font-normal">(optional)</span><input type="number" min="0.01" step="0.01" value={mrp} onChange={event=>setMrp(event.target.value)} className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white" placeholder="Leave blank if not set" /></label>
+        {isAdmin&&<AvailabilitySelect value={availability} onChange={setAvailability}/>}
         <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">Remarks <span className="font-normal text-gray-400">(optional)</span><textarea rows={4} maxLength={1000} value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Add a note about this product" className="mt-1.5 block w-full rounded-xl border-2 border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></label>
       </div>
       <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-800"><button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">Cancel</button><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? 'Saving…' : 'Save details'}</button></div>
@@ -1182,8 +1188,8 @@ const Production = () => {
                         </button>
 
                         {user?.isAdmin && section.products.length>0 && <button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setTransferSource(section.groupId);setShowTransferProducts(true);}}>Transfer products</button>}
-                        {groupKey !== UNGROUPED_GROUP_KEY && <><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setNewGroupParent(groupKey);setShowCreateGroupForm(true);}}>+ Subgroup</button><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>setGroupToPlace({id:groupKey,name:section.groupName})}>Place group</button></>}
-                        {groupKey !== UNGROUPED_GROUP_KEY && (
+                        {groupKey !== UNGROUPED_GROUP_KEY && section.groupKind!=='MAIN' && <><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>{setNewGroupParent(groupKey);setShowCreateGroupForm(true);}}>+ Subgroup</button><button type="button" className="text-xs text-indigo-600 dark:text-indigo-400" onClick={()=>setGroupToPlace({id:groupKey,name:section.groupName})}>Place group</button></>}
+                        {groupKey !== UNGROUPED_GROUP_KEY && section.groupKind!=='MAIN' && (
                           <button
                             type="button"
                             onClick={() => setGroupToDelete({ id: groupKey, name: section.groupName, productCount: section.productCount })}

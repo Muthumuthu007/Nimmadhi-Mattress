@@ -1,3 +1,4 @@
+import GroupedProductList from './GroupedProductList';
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
 
@@ -145,7 +146,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {items.map((item) => (
+                            <GroupedProductList items={items} renderItem={(item) => (
                                 <div
                                     key={item.push_id}
                                     className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-200 dark:border-gray-700"
@@ -182,7 +183,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                                         )}
                                     </button>
                                 </div>
-                            ))}
+                            )}/>
                         </div>
                     )}
                 </div>

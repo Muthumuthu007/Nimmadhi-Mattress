@@ -1,3 +1,4 @@
+import {ProductGroupOptions} from '../components/GroupedProductList';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileMinus2, RefreshCcw, Undo2 } from 'lucide-react';
 import { handleApiError } from '../utils/api';
@@ -167,7 +168,7 @@ export default function CreditNote() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Finished product
             <select value={productId} onChange={(event) => setProductId(event.target.value)} disabled={loading || submitting || Boolean(returnCase)} className="mt-1 w-full rounded-lg border bg-transparent px-3 py-2.5 text-gray-900 dark:border-gray-600 dark:text-white">
               <option value="">{loading ? 'Loading products…' : 'Choose a product'}</option>
-              {products.map((product) => <option key={product.product_id} value={product.product_id}>{product.product_name}</option>)}
+              <ProductGroupOptions items={products} id={product=>product.product_id} name={product=>product.product_name}/>
             </select>
           </label>
           <button onClick={confirmReversal} disabled={!selectedProduct || !materialPreview || loading || loadingMaterials || submitting} className="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-5 py-2.5 font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"><FileMinus2 className="h-4 w-4" />{submitting ? 'Reversing…' : 'Confirm reversal'}</button>

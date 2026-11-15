@@ -1,3 +1,5 @@
+import AvailabilitySelect from './AvailabilitySelect';
+import {Availability,availabilityLabels,resolveAvailability} from '../utils/productAvailability';
 import React, { useState, useRef, useEffect } from 'react';
 import { RawMaterial } from '../types';
 
@@ -33,7 +35,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
   onAddProduct,
   onClose
 }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const [availability,setAvailability]=useState<Availability>('INHERIT');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -260,6 +263,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         mrp: product.mrp.trim() || null,
         username: user.username,
         group_id: selectedGroupId,
+        ...(isAdmin?{outlet_availability:availability}:{}),
         stock_needed: stockNeeded,
         wastage_percent: parseFloat(product.wastage_percent) || 0,
         transport_cost: parseFloat(product.transport_cost) || 0,
@@ -439,6 +443,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
               </select>
             </div>
 
+            {isAdmin&&<AvailabilitySelect value={availability} onChange={setAvailability} inherited={availabilityLabels[resolveAvailability({product_id:'',product_name:'',group_id:selectedGroupId},availableGroups).value]}/>}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="wastage-percent" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Wastage Percent</label>

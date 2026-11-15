@@ -1,3 +1,4 @@
+import GroupedProductList from '../components/GroupedProductList';
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
@@ -54,6 +55,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col transition-shadow hover:shadow-md">
+      {!!product.manual_review_material_ids?.length && <p role="alert" className="p-4 bg-amber-50 text-amber-900">Review quantities: KG materials without density keep their manual quantities. {product.manual_review_material_ids.map(id => materials.find(m => m.id === id)?.name || id).join(', ')}</p>}
       {/* Card Header */}
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-4">
         <div className="flex items-start justify-between">
@@ -393,6 +395,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
   const [transportCost, setTransportCost] = useState('');
   const [otherCost, setOtherCost] = useState('');
   const [wastagePercent, setWastagePercent] = useState('');
+  const [layerMm, setLayerMm] = useState('25');
 
   const [availableMaterials, setAvailableMaterials] = useState<RawMaterial[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
@@ -481,7 +484,9 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
     setResult(null);
 
     try {
+      if(!layerMm.trim() || !Number.isFinite(Number(layerMm)) || Number(layerMm)<=0 || Number(layerMm)>1000) throw new Error('Enter a layer thickness greater than 0 and at most 1000 mm.');
       const response = await createCastingProduct({
+        layer_mm: Number(layerMm),
         product_name: productName.trim(),
         selected_items: selectedItems,
         username,
@@ -500,6 +505,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
         product_id: response.product_id,
         product_name: response.product_name,
         stock_needed: response.stock_needed,
+        manual_review_material_ids: response.manual_review_material_ids,
         max_produce: response.max_produce,
         production_cost_breakdown: response.production_cost_breakdown,
         production_cost_total: response.production_cost_total,
@@ -550,6 +556,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                 <span className="font-bold text-green-800">Costing Created Successfully!</span>
               </div>
               <p className="text-sm text-green-700 mb-3">Required raw materials and their calculated costs:</p>
+              {!!result.manual_review_material_ids?.length && <p role="alert" className="mb-3 text-amber-800">Review KG materials without density: enter or verify their quantities before production.</p>}
               <div className="space-y-1.5">
                 {Object.entries(result.stock_needed ?? {}).map(([name, qty]) => (
                   <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={result.production_cost_breakdown?.[name]} materials={availableMaterials}/>
@@ -573,6 +580,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                 </div>
               )}
 
+              <label className="block text-sm font-medium text-gray-800">Calculation layer thickness (mm)<input aria-label="Calculation layer thickness (mm)" type="number" min="0.01" max="1000" step="any" value={layerMm} onChange={e=>setLayerMm(e.target.value)} className="mt-1 block w-full rounded border p-2"/><span className="text-xs text-gray-600">Defaults to 25 mm. Used for KG materials with density.</span></label>
               {/* Step 1 — Product Name */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -939,7 +947,7 @@ const Costing: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredCastings.map(product => (
+          <GroupedProductList items={filteredCastings} contentClassName="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" renderItem={product => (
             <CostingCard
               materials={costMaterials}
               key={product.product_id}
@@ -949,7 +957,7 @@ const Costing: React.FC = () => {
               onDelete={(id, name) => setDeleteTarget({ id, name })}
               isMoving={movingProductId === product.product_id}
             />
-          ))}
+          )}/>
         </div>
       )}
 

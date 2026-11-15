@@ -1,3 +1,4 @@
+import {ProductPathLabel} from '../GroupedProductList';
 import React from 'react';
 import { Product } from '../../types';
 import { Bed } from 'lucide-react';
@@ -13,7 +14,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="flex items-center justify-center h-32 sm:h-48 bg-gray-50 rounded-lg mb-4">
           <Bed className="w-24 h-24 sm:w-32 sm:h-32 text-indigo-600" />
         </div>
-        <h3 className="text-lg sm:text-xl font-semibold mb-2 line-clamp-2">{product.name}</h3>
+        <h3 className="text-lg sm:text-xl font-semibold mb-2 line-clamp-2">{product.name}</h3><ProductPathLabel item={product as unknown as Record<string,unknown>}/>
         
         <div className="border-t pt-2">
           <p className="text-base sm:text-lg font-semibold text-indigo-600">₹{product.productionCostTotal}</p>
