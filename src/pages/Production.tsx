@@ -141,7 +141,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
         : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-lg'
         }`}
     >
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+      <div className="production-card-header mb-4">
         <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
           <button
             onClick={() => onToggleExpand(product.id)}
@@ -172,7 +172,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="production-card-tools">
           <div className="flex-1 sm:flex-initial text-left sm:text-right">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Production Cost</div>
             <div className="text-lg sm:text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
@@ -186,7 +186,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             </div>
           </div>
           <div className="text-left sm:text-right min-w-20"><div className="text-xs text-gray-500 dark:text-gray-400 mb-1">MRP</div><div className="text-lg font-bold text-amber-600 dark:text-amber-300">{product.mrp == null ? 'Nil' : `₹${Number(product.mrp).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}`}</div></div>
-          <button
+          <div className="production-card-actions"><button
             onClick={() => onEditDetails(product)}
             className="flex-shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 p-2 sm:p-3 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-200 shadow-sm hover:shadow-md"
             title="Edit product name, remarks and MRP"
@@ -219,7 +219,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             ) : (
               <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
-          </button>
+          </button></div>
         </div>
       </div>
       {isExpanded && (

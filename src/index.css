@@ -271,3 +271,12 @@
 }
 
 @media screen { .skeleton-shimmer { max-width:100%; } }
+
+@media screen {
+ .production-card-header { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr)); gap:1rem; align-items:start; }
+ .production-card-tools { display:grid; width:100%; grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr)); gap:1rem; }
+ .production-card-tools > div { text-align:left; min-width:0; overflow-wrap:break-word; }
+ .production-card-actions { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:.5rem; }
+ .production-card-actions button { min-width:44px; min-height:44px; }
+}
+@media screen and (max-width:640px) { .production-group-children { padding-left:.5rem; } }
