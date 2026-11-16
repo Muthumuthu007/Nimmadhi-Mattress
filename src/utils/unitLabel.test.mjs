@@ -46,8 +46,9 @@ test('batch printing contains each unique label once and breaks only between sti
  for(const id of ['UNIT-ONE','UNIT-TWO','UNIT-THREE'])assert.equal(html.split(id).length-1,1);
  assert.ok(html.includes('.unit-label-page:not(:last-child){break-after:page;page-break-after:always}'));
  assert.ok(html.includes('height:auto;'));
- assert.ok(html.includes(')(document,89,45,true,3)'));
- assert.ok(html.includes('label.replaceWith(images[index])'));assert.ok(html.includes('await doc.fonts.ready'));
+ assert.ok(html.includes('window.print()'));
+ assert.ok(!html.includes('canvas'));assert.ok(!html.includes('unit-label-print-image'));
+ assert.ok(html.includes('labels.some(label=>'));
 });
 test('empty or partially missing batches cannot print',()=>{
  assert.throws(()=>unitLabelPrintDocument([],89,45));
