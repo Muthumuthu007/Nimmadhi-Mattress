@@ -1,4 +1,4 @@
-import GroupedProductList from './GroupedProductList';
+import {ProductPathLabel} from './GroupedProductList';
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, AlertTriangle, RotateCcw, Loader2 } from 'lucide-react';
 
@@ -109,7 +109,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                 <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                         <RotateCcw className="h-5 w-5 mr-2" />
-                        Undo Production (Today)
+                        Undo Production — latest first
                     </h3>
                     <button
                         onClick={onClose}
@@ -142,21 +142,22 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                         </div>
                     ) : items.length === 0 ? (
                         <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                            No active production records found for today.
+                            No active production records found in the current period.
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            <GroupedProductList items={items} renderItem={(item) => (
+                            {items.map((item) => (
                                 <div
                                     key={item.push_id}
                                     className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-200 dark:border-gray-700"
                                 >
                                     <div className="flex-1">
                                         <h4 className="font-medium text-gray-900 dark:text-white">{item.product_name}</h4>
+                                        <ProductPathLabel item={item as unknown as Record<string,unknown>}/>
                                         <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
                                             <p>Quantity: <span className="font-medium text-gray-700 dark:text-gray-300">{item.quantity_produced}</span></p>
                                             <p className="text-xs">Push ID: <span className="font-mono">{item.push_id}</span></p>
-                                            <p className="text-xs">{formatApiDate(item.timestamp, 'h:mm a')}</p>
+                                            <p className="text-xs">{formatApiDate(item.timestamp, 'dd MMM yyyy, h:mm:ss a')}</p>
                                         </div>
                                     </div>
 
@@ -183,7 +184,7 @@ const UndoProductionModal: React.FC<UndoProductionModalProps> = ({
                                         )}
                                     </button>
                                 </div>
-                            )}/>
+                            ))}
                         </div>
                     )}
                 </div>
