@@ -110,7 +110,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
       let response;
       if(custom.enabled || customUncertain){
         if(!customUncertain){
-          const body={product_id:selectedProduct,quantity:Number(quantity),custom_size:custom.custom_size,layer_mm:custom.layer_mm,material_quantities:custom.material_quantities,materials_reviewed:custom.materials_reviewed};
+          const body={product_id:selectedProduct,quantity:Number(quantity),custom_size:custom.custom_size,layer_mm:custom.layer_mm,material_layers_mm:custom.material_layers_mm,material_quantities:custom.material_quantities,materials_reviewed:custom.materials_reviewed};
           const signature=JSON.stringify(body);
           if(customRequest.current?.signature!==signature)customRequest.current={signature,key:crypto.randomUUID(),body};
         }

@@ -5,8 +5,9 @@ import { axiosInstance } from './axiosInstance';
 
 export interface CreateCastingPayload {
   layer_mm?: number;
+  material_layers_mm?: Record<string,number>;
   product_name: string;
-  selected_items: string[]; // array of material names (not IDs)
+  selected_items: string[]; // stable raw-material IDs
   username: string;
   labour_cost: number;
   transport_cost: number;
@@ -17,6 +18,7 @@ export interface CreateCastingPayload {
 
 export interface CreateCastingResponse {
   layer_mm?: number;
+  material_layers_mm?: Record<string,number>;
   manual_review_material_ids?: string[];
   message: string;
   product_id: string;
@@ -57,6 +59,8 @@ export async function createCastingProduct(
 // ─── View / List ─────────────────────────────────────────────────────────────
 
 export interface CastingProductResponse {
+  layer_mm?: number;
+  material_layers_mm?: Record<string,number>;
   manual_review_material_ids?: string[];
   is_custom_production_record?: boolean;
   production_status?: string;

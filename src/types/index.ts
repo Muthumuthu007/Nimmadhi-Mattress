@@ -1,4 +1,5 @@
 export interface RawMaterial {
+  density?: number | string;
   id: string;
   name: string;
   quantity: number;

@@ -1,3 +1,4 @@
+import {usesDensityLayer,layerOverrides} from '../utils/materialLayers';
 import GroupedProductList from '../components/GroupedProductList';
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -92,7 +93,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
           ) : (
             <div className="space-y-1">
               {visibleMaterials.map(([name, qty]) => (
-                <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={product.production_cost_breakdown?.[name]} materials={materials}/>
+                <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={product.production_cost_breakdown?.[name]} layerMm={product.material_layers_mm?.[name]} materials={materials}/>
 
               ))}
               {materialEntries.length > 4 && (
@@ -396,11 +397,12 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
   const [otherCost, setOtherCost] = useState('');
   const [wastagePercent, setWastagePercent] = useState('');
   const [layerMm, setLayerMm] = useState('25');
+  const [materialLayers,setMaterialLayers]=useState<Record<string,string>>({});
 
   const [availableMaterials, setAvailableMaterials] = useState<RawMaterial[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
   const [materialSearch, setMaterialSearch] = useState('');
-  const [selectedItems, setSelectedItems] = useState<string[]>([]); // material names
+  const [selectedItems, setSelectedItems] = useState<string[]>([]); // raw-material IDs
 
   const [availableGroups, setAvailableGroups] = useState<ProductGroup[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
@@ -425,6 +427,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
             name: item.name,
             quantity: item.quantity,
             unit: item.unit,
+            density: item.density,
             cost: parseFloat(item.cost_per_unit) || 0,
             available: item.total_quantity,
             minStockLimit: item.stock_limit,
@@ -464,14 +467,14 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
     m.name.toLowerCase().includes(materialSearch.toLowerCase())
   );
 
-  const toggleMaterial = (name: string) => {
-    setSelectedItems(prev =>
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
-    );
+  const toggleMaterial = (id: string) => {
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(key=>key!==id) : [...prev,id]);
+    setMaterialLayers(current=>{const next={...current};delete next[id];return next;});
   };
 
-  const removeMaterial = (name: string) => {
-    setSelectedItems(prev => prev.filter(n => n !== name));
+  const removeMaterial = (id: string) => {
+    setSelectedItems(prev => prev.filter(key=>key!==id));
+    setMaterialLayers(current=>{const next={...current};delete next[id];return next;});
   };
 
   const handleSubmit = async () => {
@@ -485,8 +488,11 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
 
     try {
       if(!layerMm.trim() || !Number.isFinite(Number(layerMm)) || Number(layerMm)<=0 || Number(layerMm)>1000) throw new Error('Enter a layer thickness greater than 0 and at most 1000 mm.');
+      const overrides=layerOverrides(materialLayers);
+      if(!overrides)throw new Error('Enter a valid thickness for each material (greater than 0 and at most 1000 mm).');
       const response = await createCastingProduct({
         layer_mm: Number(layerMm),
+        material_layers_mm: overrides,
         product_name: productName.trim(),
         selected_items: selectedItems,
         username,
@@ -506,6 +512,8 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
         product_name: response.product_name,
         stock_needed: response.stock_needed,
         manual_review_material_ids: response.manual_review_material_ids,
+        layer_mm:response.layer_mm,
+        material_layers_mm:response.material_layers_mm,
         max_produce: response.max_produce,
         production_cost_breakdown: response.production_cost_breakdown,
         production_cost_total: response.production_cost_total,
@@ -559,7 +567,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
               {!!result.manual_review_material_ids?.length && <p role="alert" className="mb-3 text-amber-800">Review KG materials without density: enter or verify their quantities before production.</p>}
               <div className="space-y-1.5">
                 {Object.entries(result.stock_needed ?? {}).map(([name, qty]) => (
-                  <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={result.production_cost_breakdown?.[name]} materials={availableMaterials}/>
+                  <MaterialCostLine key={name} materialKey={name} quantity={qty} amount={result.production_cost_breakdown?.[name]} layerMm={result.material_layers_mm?.[name]} materials={availableMaterials}/>
 
                 ))}
               </div>
@@ -580,7 +588,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                 </div>
               )}
 
-              <label className="block text-sm font-medium text-gray-800">Calculation layer thickness (mm)<input aria-label="Calculation layer thickness (mm)" type="number" min="0.01" max="1000" step="any" value={layerMm} onChange={e=>setLayerMm(e.target.value)} className="mt-1 block w-full rounded border p-2"/><span className="text-xs text-gray-600">Defaults to 25 mm. Used for KG materials with density.</span></label>
+              <label className="block text-sm font-medium text-gray-800">Default layer thickness (mm)<input aria-label="Default layer thickness (mm)" type="number" min="0.01" max="1000" step="any" value={layerMm} onChange={e=>setLayerMm(e.target.value)} className="mt-1 block w-full rounded border p-2"/><span className="text-xs text-gray-600">Starts at 25 mm. Set a different thickness for individual KG materials below.</span></label>
               {/* Step 1 — Product Name */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -674,7 +682,7 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                   <div className="flex flex-wrap gap-2 mb-3 p-3 bg-orange-50 border border-orange-100 rounded-xl">
                     {selectedItems.map(name => (
                       <span key={name} className="inline-flex items-center gap-1 bg-white border border-orange-200 text-orange-800 text-xs font-semibold px-2.5 py-1.5 rounded-full shadow-sm">
-                        {name}
+                        {availableMaterials.find(material=>material.id===name)?.name || name}
                         <button type="button" onClick={() => removeMaterial(name)} className="text-orange-400 hover:text-orange-600 ml-0.5">
                           <X className="h-3 w-3" />
                         </button>
@@ -682,6 +690,8 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                     ))}
                   </div>
                 )}
+
+                {selectedItems.length>0&&<section className="mb-4 space-y-3" aria-label="Selected material thicknesses"><h3 className="text-sm font-bold text-gray-800">Thickness by raw material</h3>{availableMaterials.filter(material=>selectedItems.includes(material.id)&&usesDensityLayer(material)).map(material=><label key={material.id} className="block rounded-lg border border-orange-200 bg-white p-3 text-sm font-medium text-gray-800">{material.name}<span className="block text-xs text-gray-500">Layer thickness (mm)</span><input aria-label={`${material.name} layer thickness (mm)`} type="number" min="0.01" max="1000" step="any" value={materialLayers[material.id]??layerMm} onChange={event=>setMaterialLayers(current=>({...current,[material.id]:event.target.value}))} className="mt-1 block w-full rounded border p-2"/></label>)}<p className="text-xs text-gray-600">Each thickness applies only to that material. KG materials without density still need manual quantity review.</p></section>}
 
                 {/* Search */}
                 <div className="relative mb-2">
@@ -710,12 +720,12 @@ const CreateDrawer: React.FC<CreateDrawerProps> = ({ username, onClose, onSucces
                   ) : (
                     <div className="divide-y divide-gray-100">
                       {filteredMaterials.map(m => {
-                        const isSelected = selectedItems.includes(m.name);
+                        const isSelected = selectedItems.includes(m.id);
                         return (
                           <button
                             key={m.id}
                             type="button"
-                            onClick={() => toggleMaterial(m.name)}
+                            onClick={() => toggleMaterial(m.id)}
                             className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isSelected ? 'bg-orange-50' : 'hover:bg-white'}`}
                           >
                             <div className="flex items-center gap-3">
