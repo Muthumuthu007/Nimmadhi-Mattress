@@ -1,3 +1,5 @@
+import {renderToStaticMarkup} from 'react-dom/server';
+import UnitPrintLabel from '../components/UnitPrintLabel';
 import QRReprintHistory from '../components/QRReprintHistory';
 import {ProductGroupOptions,ProductPathLabel} from '../components/GroupedProductList';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -181,7 +183,7 @@ export default function UnitTracking() {
 
   const printLabels = (ids:string[]) => {
     const labels=ids.map(id=>labelRefs.current.get(id));
-    if(!ids.length || labels.some(label=>!label)){
+    if(!ids.length || !generated?.label_details || labels.some(label=>!label)){
       setError('Saved labels are not fully loaded. Open Reprint QR history and select the saved batch; do not generate new labels for these units.');
       return;
     }
@@ -197,7 +199,7 @@ export default function UnitTracking() {
       return;
     }
     printWindow.document.open();
-    try{printWindow.document.write(unitLabelPrintDocument(labels.map(label=>label!.outerHTML),labelWidth,labelHeight));}
+    try{printWindow.document.write(unitLabelPrintDocument(ids.map(unitId=>renderToStaticMarkup(<UnitPrintLabel details={generated!.label_details!} unitId={unitId} width={labelWidth} height={labelHeight}/>)),labelWidth,labelHeight));}
     catch(error){printWindow.close();setError(error instanceof Error?error.message:'Unable to prepare the label.');return;}
     printWindow.document.close();
     printWindow.opener = null;

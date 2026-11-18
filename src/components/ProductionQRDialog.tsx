@@ -1,7 +1,7 @@
+import UnitPrintLabel from './UnitPrintLabel';
 import {useState,useRef} from 'react';
 import {AxiosError} from 'axios';
 import {renderToStaticMarkup} from 'react-dom/server';
-import UnitProductLabel from './UnitProductLabel';
 import {initialUnitLabel,unitLabelPrintDocument} from '../utils/unitLabel';
 import {unitApi,UnitLabelDetails,ProductUnit} from '../utils/unitApi';
 import {ProductionResponse} from '../types';
@@ -26,7 +26,7 @@ export default function ProductionQRDialog({entry,onClose}:{entry:ProductionResp
   popup.document.write('<p>Preparing QR stickers. Please wait…</p>');return popup;
  };
  const print=(popup:Window,ready:ProductUnit[],label:UnitLabelDetails)=>{
-  const html=unitLabelPrintDocument(ready.map(unit=>renderToStaticMarkup(<UnitProductLabel details={label} unitId={unit.unit_id}/>)),89,45);
+  const html=unitLabelPrintDocument(ready.map(unit=>renderToStaticMarkup(<UnitPrintLabel details={label} unitId={unit.unit_id}/>)),89,45);
   popup.document.open();popup.document.write(html);popup.document.close();popup.opener=null;
  };
  const generate=async()=>{
