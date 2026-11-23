@@ -173,6 +173,15 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [isAuthenticated, user?.username, fetchProducts]);
 
+  // Refresh current material rates after editing inventory in another tab/window.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void fetchProducts().catch(() => undefined);
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [fetchProducts]);
+
   const addProduct = useCallback((product: Product) => {
     setProducts(prev => {
       // Check if product already exists
