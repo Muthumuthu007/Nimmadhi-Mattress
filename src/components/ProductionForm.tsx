@@ -1,3 +1,4 @@
+import {productionBatchCost} from '../utils/productionBatchCost.mjs';
 import QRReprintHistory from './QRReprintHistory';
 import {unitApi} from '../utils/unitApi';
 import GroupedProductList from './GroupedProductList';
@@ -100,13 +101,6 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         return;
       }
 
-      const newTotalCostPerUnit = (
-        Number(selectedProductDetails.productionCostTotal) +
-        Number(selectedProductDetails.laborCost || 0) +
-        Number(selectedProductDetails.transportCost || 0) +
-        Number(selectedProductDetails.wastageAmount || 0) +
-        Number((selectedProductDetails as any).otherCost || 0)
-      );
       let response;
       if(custom.enabled || customUncertain){
         if(!customUncertain){
@@ -115,7 +109,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
           if(customRequest.current?.signature!==signature)customRequest.current={signature,key:crypto.randomUUID(),body};
         }
         response=await productionApi.pushCustom(customRequest.current!.body,customRequest.current!.key);
-      }else response=await productionApi.push({product_id:selectedProduct,quantity:Number(quantity),username:user.username,production_cost_per_unit:newTotalCostPerUnit});
+      }else response=await productionApi.push({product_id:selectedProduct,quantity:Number(quantity),username:user.username});
 
       const data = response.data;
       console.log('Production push response data:', data);
@@ -201,6 +195,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
     ...rawSelectedProduct,
     maxProduce: rawSelectedProduct.maxProduce
   } : undefined;
+
+  const batchCost = productionBatchCost(selectedProductDetails, quantity);
 
   return (
     <div ref={formTopRef} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-colors duration-300">
@@ -340,14 +336,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
                 <span className="font-medium">{selectedProductDetails.maxProduce} units</span>
               </p>
               <p className="flex justify-between">
-                <span>Cost per Unit:</span>
-                <span className="font-medium">₹{(
-                  Number(selectedProductDetails.productionCostTotal) +
-                  Number(selectedProductDetails.laborCost || 0) +
-                  Number(selectedProductDetails.transportCost || 0) +
-                  Number(selectedProductDetails.wastageAmount || 0) +
-                  Number((selectedProductDetails as any).otherCost || 0)
-                ).toFixed(2)}</span>
+                <span>Cost per Unit (selected batch):</span>
+                <span className="font-medium">{batchCost ? `₹${batchCost.perUnit.toFixed(2)}` : '—'}</span>
               </p>
               <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
                 <p className="text-gray-600 dark:text-gray-400 mb-1">Materials Required per Unit:</p>
@@ -380,16 +370,11 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         {selectedProductDetails && !custom.enabled && (
           <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-md transition-colors duration-300">
             <h3 className="font-medium text-indigo-700 dark:text-indigo-300 mb-2">Production Summary</h3>
+            <p className="mb-2 text-xs text-gray-600 dark:text-gray-300">Materials and wastage scale with quantity. Labour, transport and other charges apply once to this batch.</p>
             <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
               <p className="flex justify-between">
                 <span>Total Cost:</span>
-                <span className="font-medium">₹{(
-                  (Number(selectedProductDetails.productionCostTotal) +
-                    Number(selectedProductDetails.laborCost || 0) +
-                    Number(selectedProductDetails.transportCost || 0) +
-                    Number(selectedProductDetails.wastageAmount || 0) +
-                    Number((selectedProductDetails as any).otherCost || 0)) * Number(quantity)
-                ).toFixed(2)}</span>
+                <span className="font-medium">{batchCost ? `₹${batchCost.total.toFixed(2)}` : '—'}</span>
               </p>
               <div className="production-summary-materials">
                 <span>Total Materials Required:</span>

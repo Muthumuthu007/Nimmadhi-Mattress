@@ -26,6 +26,8 @@ export interface CreateCastingResponse {
   stock_needed: { [material_name: string]: string };
   max_produce: number;
   production_cost_breakdown: { [material_name: string]: string };
+  cost_basis?: string;
+  cost_missing_material_ids?: string[];
   production_cost_total: number;
   wastage_percent: number;
   wastage_amount: number;
@@ -59,6 +61,8 @@ export async function createCastingProduct(
 // ─── View / List ─────────────────────────────────────────────────────────────
 
 export interface CastingProductResponse {
+  cost_basis?: string;
+  cost_missing_material_ids?: string[];
   layer_mm?: number;
   material_layers_mm?: Record<string,number>;
   manual_review_material_ids?: string[];

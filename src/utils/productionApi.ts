@@ -117,7 +117,7 @@ export const productionApi = {
         return apiClient.get<ProductionListResponse>('/api/production/list/');
     },
 
-    push: (data: { product_id: string; quantity: number; username: string; production_cost_per_unit: number }) => {
+    push: (data: { product_id: string; quantity: number; username: string; production_cost_per_unit?: number }) => {
         return apiClient.post<ProductionResponse>('/api/production/push/', data);
     },
 

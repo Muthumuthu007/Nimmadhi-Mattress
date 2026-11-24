@@ -1,0 +1,1 @@
+export function productionBatchCost(product: {productionCostTotal?: number; wastage?: number; laborCost?: number; transportCost?: number; otherCost?: number} | undefined, quantity: string | number): null | {materialTotal:number;wastageTotal:number;overhead:number;total:number;perUnit:number};

@@ -86,7 +86,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
         <div>
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Materials</span>
-            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Saved calculation</span>
+            <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">{product.is_custom_production_record ? 'Saved calculation' : 'Current material rates'}</span>
           </div>
           {materialEntries.length === 0 ? (
             <p className="text-sm text-gray-400 italic">No materials calculated</p>
@@ -117,7 +117,8 @@ const CostingCard: React.FC<CostingCardProps> = ({
           </div>
         )}
 
-        <p className="text-xs text-gray-500">Rates shown are those used in this saved costing. Current purchase rates may differ.</p>
+        <p className="text-xs text-gray-500">{product.is_custom_production_record ? 'Rates shown are those used in this saved production. Current purchase rates may differ.' : 'This estimate uses current material rates. Completed production records keep their saved costs.'}</p>
+        {!!product.cost_missing_material_ids?.length && <p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Estimate incomplete: {product.cost_missing_material_ids.length} required material(s) are missing from inventory. Review the materials before production.</p>}
         {/* Cost Breakdown */}
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Cost Breakdown</p>
@@ -141,7 +142,7 @@ const CostingCard: React.FC<CostingCardProps> = ({
           </div>
           <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex justify-between items-center">
             <span className="font-bold text-gray-700">{product.is_custom_production_record ? 'Cost per finished unit' : 'Total Est. Cost'}</span>
-            <span className="text-xl font-bold text-green-600">{formatMoney(product.total_cost)}</span>
+            <span className="text-xl font-bold text-green-600">{product.cost_missing_material_ids?.length ? 'Incomplete' : formatMoney(product.total_cost)}</span>
           </div>
         </div>
       </div>
@@ -808,6 +809,12 @@ const Costing: React.FC = () => {
   };
 
   useEffect(() => { fetchCastings(); }, [location.pathname]);
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void fetchCastings(); };
+    window.addEventListener('focus', refresh);
+    const timer=window.setInterval(refresh,60000);
+    return () => {window.removeEventListener('focus', refresh);window.clearInterval(timer);};
+  }, []);
 
   // Auto-dismiss messages
   useEffect(() => {
