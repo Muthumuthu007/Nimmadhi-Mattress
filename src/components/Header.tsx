@@ -25,7 +25,7 @@ interface NavItem {
 export const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout, isAdmin, hasPermission } = useAuth();
+  const { logout, isAdmin, hasPermission, isAuthenticated } = useAuth();
   const { isDispatchedPageVisible } = usePermissions();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -64,6 +64,7 @@ export const Header = () => {
     { to: '/dashboard/costing',    label: 'Costing',    icon: <Droplet className="h-4 w-4" />, visible: hasPermission('costing') },
     { to: '/dashboard/inventory',  label: 'Inventory',  icon: <PackageSearch className="h-4 w-4" />, visible: hasPermission('inventory') },
     { to: '/dashboard/production', label: 'Production', icon: <Factory className="h-4 w-4" />, visible: hasPermission('production') },
+    { to: '/dashboard/qr-reprints', label: 'Reprint QR', icon: <QrCode className="h-4 w-4" />, visible: isAuthenticated },
     { to: '/dashboard/unit-tracking', label: 'QR Units', icon: <QrCode className="h-4 w-4" />, visible: hasPermission('production') },
     { to: '/dashboard/credit-note', label: 'Credit Note', icon: <FileMinus2 className="h-4 w-4" />, visible: hasPermission('production') },
     { to: '/dashboard/dispatched', label: 'Dispatched', icon: <Package className="h-4 w-4" />, visible: isDispatchedPageVisible && hasPermission('dispatch') },

@@ -34,6 +34,7 @@ import MonthlyInward from '../pages/reports/MonthlyInward';
 import MonthlyInwardGrid from '../pages/reports/MonthlyInwardGrid';
 import MonthlyOutwardGrid from '../pages/reports/MonthlyOutwardGrid';
 import UnitTracking from '../pages/UnitTracking';
+import QRReprint from '../pages/QRReprint';
 import CreditNote from '../pages/CreditNote';
 
 export const router = createBrowserRouter([
@@ -134,6 +135,7 @@ export const router = createBrowserRouter([
           </PermissionGuard>
         ),
       },
+      {path: 'qr-reprints', element: <QRReprint />},
       {
         path: 'unit-tracking',
         element: (
